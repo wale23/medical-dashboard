@@ -1,0 +1,203 @@
+@startuml
+!theme plain
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+}
+
+title Diagramme de Cas d'Utilisation - Système de Gestion de Cabinet Médical
+
+' Acteurs
+actor Patient as patient
+actor Medecin as medecin
+actor Administrateur as admin
+
+' Package Système
+package "Système de Gestion Cabinet Médical" {
+  
+  ' Cas d'utilisation Patient
+  package "Gestion Patient" {
+    usecase "UC-01 : Créer un compte" as UC01
+    usecase "UC-02 : Se connecter" as UC02
+    usecase "UC-03 : Consulter les disponibilités" as UC03
+    usecase "UC-04 : Prendre un rendez-vous" as UC04
+    usecase "UC-05 : Modifier un rendez-vous" as UC05
+    usecase "UC-06 : Annuler un rendez-vous" as UC06
+    usecase "UC-07 : Consulter son dossier médical" as UC07
+    usecase "UC-08 : Consulter l'historique des consultations" as UC08
+    usecase "UC-09 : Consulter les prescriptions" as UC09
+    usecase "UC-10 : Consulter les factures" as UC10
+    usecase "UC-11 : Payer une facture" as UC11
+  }
+  
+  ' Cas d'utilisation Médecin
+  package "Gestion Médecin" {
+    usecase "UC-12 : Se connecter" as UC12
+    usecase "UC-13 : Consulter ses rendez-vous" as UC13
+    
+    package "Disponibilités" {
+      usecase "UC-14 : Gérer les disponibilités" as UC14
+      usecase "UC-14.1 : Définir une disponibilité" as UC14_1
+      usecase "UC-14.2 : Modifier une disponibilité" as UC14_2
+      usecase "UC-14.3 : Supprimer une disponibilité" as UC14_3
+    }
+    
+    package "Patients" {
+      usecase "UC-15 : Gérer les patients" as UC15
+      usecase "UC-15.1 : Créer un patient" as UC15_1
+      usecase "UC-15.2 : Consulter un patient" as UC15_2
+      usecase "UC-15.3 : Modifier un patient" as UC15_3
+      usecase "UC-15.4 : Supprimer un patient" as UC15_4
+    }
+    
+    package "Consultations" {
+      usecase "UC-16 : Effectuer une consultation" as UC16
+      usecase "UC-16.1 : Enregistrer une consultation" as UC16_1
+      usecase "UC-16.2 : Rédiger un diagnostic" as UC16_2
+      usecase "UC-16.3 : Ajouter des observations" as UC16_3
+      usecase "UC-17 : Créer une prescription" as UC17
+      usecase "UC-18 : Mettre à jour un dossier médical" as UC18
+    }
+    
+    package "Rendez-vous Médecin" {
+      usecase "UC-19 : Gérer les rendez-vous" as UC19
+      usecase "UC-19.1 : Confirmer un rendez-vous" as UC19_1
+      usecase "UC-19.2 : Marquer un rendez-vous terminé" as UC19_2
+      usecase "UC-19.3 : Marquer un rendez-vous absent" as UC19_3
+      usecase "UC-20 : Générer une facture" as UC20
+    }
+  }
+  
+  ' Cas d'utilisation Administrateur
+  package "Gestion Administrateur" {
+    usecase "UC-21 : Se connecter (comme admin)" as UC21
+    
+    package "Médecins" {
+      usecase "UC-22 : Gérer les comptes médecins" as UC22
+      usecase "UC-22.1 : Créer un compte médecin" as UC22_1
+      usecase "UC-22.2 : Consulter les médecins" as UC22_2
+      usecase "UC-22.3 : Modifier un médecin" as UC22_3
+      usecase "UC-22.4 : Désactiver un médecin" as UC22_4
+    }
+    
+    package "Patients Admin" {
+      usecase "UC-23 : Gérer les dossiers patients" as UC23
+      usecase "UC-23.1 : Consulter tous les patients" as UC23_1
+      usecase "UC-23.2 : Modifier un dossier médical" as UC23_2
+      usecase "UC-23.3 : Archiver un dossier" as UC23_3
+    }
+    
+    package "Facturation Admin" {
+      usecase "UC-24 : Gérer la facturation" as UC24
+      usecase "UC-24.1 : Consulter toutes les factures" as UC24_1
+      usecase "UC-24.2 : Valider un paiement" as UC24_2
+      usecase "UC-24.3 : Générer des rapports" as UC24_3
+    }
+    
+    package "Horaires Admin" {
+      usecase "UC-25 : Gérer les horaires" as UC25
+      usecase "UC-25.1 : Consulter tous les horaires" as UC25_1
+      usecase "UC-25.2 : Modifier les horaires" as UC25_2
+    }
+    
+    package "Statistiques" {
+      usecase "UC-26 : Consulter les statistiques" as UC26
+      usecase "UC-26.1 : Statistiques des rendez-vous" as UC26_1
+      usecase "UC-26.2 : Statistiques financières" as UC26_2
+      usecase "UC-26.3 : Statistiques des consultations" as UC26_3
+      usecase "UC-27 : Générer des rapports" as UC27
+      usecase "UC-27.1 : Rapport mensuel" as UC27_1
+      usecase "UC-27.2 : Rapport annuel" as UC27_2
+      usecase "UC-27.3 : Rapport personnalisé" as UC27_3
+    }
+  }
+}
+
+' Relations Patient
+patient --> UC01
+patient --> UC02
+patient --> UC03
+patient --> UC04
+patient --> UC05
+patient --> UC06
+patient --> UC07
+patient --> UC08
+patient --> UC09
+patient --> UC10
+patient --> UC11
+
+' Relations Médecin
+medecin --> UC12
+medecin --> UC13
+medecin --> UC14
+medecin --> UC15
+medecin --> UC16
+medecin --> UC17
+medecin --> UC18
+medecin --> UC19
+medecin --> UC20
+
+' Relations Administrateur
+admin --> UC21
+admin --> UC22
+admin --> UC23
+admin --> UC24
+admin --> UC25
+admin --> UC26
+admin --> UC27
+
+' Relations spécialisées
+UC14 <.. UC14_1 : <<extends>>
+UC14 <.. UC14_2 : <<extends>>
+UC14 <.. UC14_3 : <<extends>>
+
+UC15 <.. UC15_1 : <<extends>>
+UC15 <.. UC15_2 : <<extends>>
+UC15 <.. UC15_3 : <<extends>>
+UC15 <.. UC15_4 : <<extends>>
+
+UC16 <.. UC16_1 : <<extends>>
+UC16 <.. UC16_2 : <<extends>>
+UC16 <.. UC16_3 : <<extends>>
+
+UC19 <.. UC19_1 : <<extends>>
+UC19 <.. UC19_2 : <<extends>>
+UC19 <.. UC19_3 : <<extends>>
+
+UC22 <.. UC22_1 : <<extends>>
+UC22 <.. UC22_2 : <<extends>>
+UC22 <.. UC22_3 : <<extends>>
+UC22 <.. UC22_4 : <<extends>>
+
+UC23 <.. UC23_1 : <<extends>>
+UC23 <.. UC23_2 : <<extends>>
+UC23 <.. UC23_3 : <<extends>>
+
+UC24 <.. UC24_1 : <<extends>>
+UC24 <.. UC24_2 : <<extends>>
+UC24 <.. UC24_3 : <<extends>>
+
+UC25 <.. UC25_1 : <<extends>>
+UC25 <.. UC25_2 : <<extends>>
+
+UC26 <.. UC26_1 : <<extends>>
+UC26 <.. UC26_2 : <<extends>>
+UC26 <.. UC26_3 : <<extends>>
+
+UC27 <.. UC27_1 : <<extends>>
+UC27 <.. UC27_2 : <<extends>>
+UC27 <.. UC27_3 : <<extends>>
+
+' Inclusions
+UC04 ..> UC03 : <<include>>
+UC11 ..> UC10 : <<include>>
+UC17 ..> UC16 : <<include>>
+UC20 ..> UC16 : <<include>>
+
+' Extensions
+UC17 ..> UC16 : <<extend>>
+UC20 ..> UC16 : <<extend>>
+
+@enduml
+

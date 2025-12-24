@@ -1,0 +1,253 @@
+// Schéma Prisma pour le Système de Gestion de Cabinet Médical
+// Base de données : PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. PATIENT
+model Patient {
+  id                String   @id @default(uuid())
+  nom               String
+  prenom            String
+  dateNaissance     DateTime
+  sexe              Sexe
+  telephone         String   @unique
+  email             String?  @unique
+  adresse           String?
+  numeroSS          String   @unique
+  groupeSanguin     String?
+  allergies         String?
+  antecedents       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  rendezVous        RendezVous[]
+  consultations     Consultation[]
+  dossierMedical    DossierMedical?
+  factures          Facture[]
+  prescriptions     Prescription[]
+
+  @@map("patients")
+}
+
+enum Sexe {
+  M
+  F
+  Autre
+}
+
+// 2. MEDECIN
+model Medecin {
+  id            String      @id @default(uuid())
+  nom           String
+  prenom        String
+  specialite    String
+  numeroOrdre   String      @unique
+  telephone     String
+  email         String      @unique
+  motDePasse    String      // Hashé avec bcrypt
+  role          RoleMedecin @default(medecin)
+  photo         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  rendezVous    RendezVous[]
+  consultations Consultation[]
+  disponibilites Disponibilite[]
+  prescriptions Prescription[]
+
+  @@map("medecins")
+}
+
+enum RoleMedecin {
+  medecin
+  admin
+}
+
+// 3. RENDEZ_VOUS
+model RendezVous {
+  id              String         @id @default(uuid())
+  patientId       String
+  medecinId       String
+  dateHeure       DateTime
+  duree           Int            @default(30) // en minutes
+  statut          StatutRendezVous @default(planifie)
+  motif           String?
+  notes           String?
+  raisonAnnulation String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medecin         Medecin        @relation(fields: [medecinId], references: [id], onDelete: Cascade)
+  consultation    Consultation?
+
+  @@map("rendez_vous")
+  @@index([patientId])
+  @@index([medecinId])
+  @@index([dateHeure])
+}
+
+enum StatutRendezVous {
+  planifie
+  confirme
+  annule
+  termine
+  absent
+}
+
+// 4. CONSULTATION
+model Consultation {
+  id                  String      @id @default(uuid())
+  rendezVousId        String      @unique
+  patientId           String
+  medecinId           String
+  dateConsultation    DateTime
+  motifConsultation   String?
+  examenClinique      String?
+  diagnostic          String?
+  observations        String?
+  recommandations     String?
+  prochainRendezVous  DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relations
+  rendezVous          RendezVous  @relation(fields: [rendezVousId], references: [id], onDelete: Cascade)
+  patient             Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medecin             Medecin     @relation(fields: [medecinId], references: [id], onDelete: Cascade)
+  prescriptions       Prescription[]
+  facture             Facture?
+
+  @@map("consultations")
+  @@index([patientId])
+  @@index([medecinId])
+  @@index([dateConsultation])
+}
+
+// 5. DOSSIER_MEDICAL
+model DossierMedical {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique
+  groupeSanguin         String?
+  allergies             String?
+  antecedents           String?
+  antecedentsFamiliaux  String?
+  traitementsEnCours    String?
+  vaccinations          Json?    // [{ date, vaccin, lot }]
+  examenBiologiques     Json?    // [{ date, type, resultats }]
+  historiqueChirurgical String?
+  notesGenerales        String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("dossiers_medicaux")
+}
+
+// 6. PRESCRIPTION
+model Prescription {
+  id              String             @id @default(uuid())
+  consultationId  String
+  medecinId       String
+  patientId       String
+  datePrescription DateTime          @default(now())
+  medicaments     Json               // [{ nom, dosage, frequence, duree }]
+  instructions    String?
+  dateDebut       DateTime?
+  dateFin         DateTime?
+  statut          StatutPrescription @default(active)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  consultation    Consultation       @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  medecin         Medecin            @relation(fields: [medecinId], references: [id], onDelete: Cascade)
+  patient         Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("prescriptions")
+  @@index([patientId])
+  @@index([consultationId])
+}
+
+enum StatutPrescription {
+  active
+  terminee
+  annulee
+}
+
+// 7. FACTURE
+model Facture {
+  id                String           @id @default(uuid())
+  consultationId    String           @unique
+  patientId         String
+  numeroFacture     String           @unique
+  dateFacture       DateTime         @default(now())
+  montantConsultation Decimal        @db.Decimal(10, 2)
+  montantTotal      Decimal          @db.Decimal(10, 2)
+  tva               Decimal?         @db.Decimal(10, 2)
+  statutPaiement    StatutPaiement   @default(en_attente)
+  modePaiement      ModePaiement?
+  datePaiement      DateTime?
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  consultation      Consultation     @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  patient           Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("factures")
+  @@index([patientId])
+  @@index([numeroFacture])
+}
+
+enum StatutPaiement {
+  en_attente
+  payee
+  partiellement_payee
+  impayee
+}
+
+enum ModePaiement {
+  especes
+  carte
+  cheque
+  virement
+}
+
+// 8. DISPONIBILITE
+model Disponibilite {
+  id                  String   @id @default(uuid())
+  medecinId           String
+  jourSemaine         Int      // 0=Dimanche, 1=Lundi, ..., 6=Samedi
+  heureDebut          String   // Format "HH:MM"
+  heureFin            String   // Format "HH:MM"
+  dureeConsultation   Int      @default(30) // en minutes
+  dateSpecifique      DateTime? // Pour les exceptions (dates spécifiques)
+  estException        Boolean  @default(false)
+  estDisponible       Boolean  @default(true)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  medecin             Medecin  @relation(fields: [medecinId], references: [id], onDelete: Cascade)
+
+  @@map("disponibilites")
+  @@index([medecinId])
+  @@index([jourSemaine])
+}
+
+
