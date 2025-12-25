@@ -5,6 +5,7 @@ export enum Sexe {
 }
 
 export enum StatutRendezVous {
+  en_attente = 'en_attente',
   planifie = 'planifie',
   confirme = 'confirme',
   annule = 'annule',
@@ -61,6 +62,7 @@ export interface User {
   userRole: string;
   photo?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface RendezVous {

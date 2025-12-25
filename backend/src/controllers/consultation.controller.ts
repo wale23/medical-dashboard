@@ -1,14 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const getAllConsultations = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const consultations = await prisma.consultation.findMany({
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new AppError('Authentification requise', 401);
+    }
+
+    // Construire la clause where selon le rôle
+    const whereClause: any = {};
+
+    // Si c'est un médecin, filtrer par son userId
+    if (currentUser.role === 'medecin') {
+      whereClause.userId = currentUser.id;
+    }
+    // Si c'est un patient, filtrer par son patientId
+    else if (currentUser.role === 'patient') {
+      whereClause.patientId = currentUser.id;
+    }
+    // Si c'est un admin, pas de filtre (voir toutes les consultations)
+
+    const consultations = await (prisma as any).consultation.findMany({
+      where: whereClause,
       include: {
         patient: {
           select: {
@@ -26,7 +47,14 @@ export const getAllConsultations = async (
           },
         },
         prescriptions: true,
-        facture: true,
+        facture: {
+          select: {
+            id: true,
+            numeroFacture: true,
+            statutPaiement: true,
+            montantTotal: true,
+          },
+        },
       },
       orderBy: { dateConsultation: 'desc' },
     });
@@ -48,7 +76,7 @@ export const getConsultationById = async (
   try {
     const { id } = req.params;
 
-    const consultation = await prisma.consultation.findUnique({
+    const consultation = await (prisma as any).consultation.findUnique({
       where: { id },
       include: {
         patient: true,
@@ -80,7 +108,7 @@ export const getConsultationsByPatient = async (
   try {
     const { patientId } = req.params;
 
-    const consultations = await prisma.consultation.findMany({
+    const consultations = await (prisma as any).consultation.findMany({
       where: { patientId },
       include: {
         user: {
@@ -112,7 +140,7 @@ export const getConsultationsByMedecin = async (
   try {
     const { userId } = req.params;
 
-    const consultations = await prisma.consultation.findMany({
+    const consultations = await (prisma as any).consultation.findMany({
       where: { userId },
       include: {
         patient: {
@@ -120,6 +148,21 @@ export const getConsultationsByMedecin = async (
             id: true,
             nom: true,
             prenom: true,
+          },
+        },
+        prescriptions: {
+          select: {
+            id: true,
+            datePrescription: true,
+            statut: true,
+          },
+        },
+        facture: {
+          select: {
+            id: true,
+            numeroFacture: true,
+            statutPaiement: true,
+            montantTotal: true,
           },
         },
       },
@@ -184,7 +227,7 @@ export const createConsultation = async (
       );
     }
 
-    const consultation = await prisma.consultation.create({
+    const consultation = await (prisma as any).consultation.create({
       data: {
         rendezVousId,
         patientId,
@@ -235,7 +278,7 @@ export const updateConsultation = async (
       updateData.prochainRendezVous = new Date(updateData.prochainRendezVous);
     }
 
-    const consultation = await prisma.consultation.update({
+    const consultation = await (prisma as any).consultation.update({
       where: { id },
       data: updateData,
       include: {

@@ -4,19 +4,30 @@ import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 // Fonction pour vérifier les disponibilités
-const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number): Promise<boolean> => {
+const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number): Promise<{ available: boolean; hasDisponibilites: boolean }> => {
   const jourSemaine = dateHeure.getDay(); // 0=Dimanche, 1=Lundi, ..., 6=Samedi
   const heure = dateHeure.getHours();
   const minutes = dateHeure.getMinutes();
-  const heureStr = `${heure.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   
   // Calculer l'heure de fin du rendez-vous
   const dateFin = new Date(dateHeure);
   dateFin.setMinutes(dateFin.getMinutes() + duree);
-  const heureFinStr = `${dateFin.getHours().toString().padStart(2, '0')}:${dateFin.getMinutes().toString().padStart(2, '0')}`;
+
+  // Vérifier d'abord si le médecin a des disponibilités définies
+  const allDisponibilites = await (prisma as any).disponibilite.findMany({
+    where: {
+      userId,
+      estDisponible: true,
+    },
+  });
+
+  // Si aucune disponibilité n'est définie, empêcher la création du rendez-vous
+  if (allDisponibilites.length === 0) {
+    return { available: false, hasDisponibilites: false };
+  }
 
   // Vérifier les disponibilités régulières (par jour de semaine)
-  const disponibilites = await prisma.disponibilite.findMany({
+  const disponibilites = await (prisma as any).disponibilite.findMany({
     where: {
       userId,
       jourSemaine,
@@ -26,7 +37,7 @@ const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number
   });
 
   // Vérifier si l'heure du rendez-vous est dans une plage de disponibilité
-  const isAvailable = disponibilites.some((disp) => {
+  let isAvailable = disponibilites.some((disp: any) => {
     const [debutH, debutM] = disp.heureDebut.split(':').map(Number);
     const [finH, finM] = disp.heureFin.split(':').map(Number);
     const debutMinutes = debutH * 60 + debutM;
@@ -40,7 +51,7 @@ const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number
 
   // Vérifier aussi les exceptions (dates spécifiques)
   if (!isAvailable) {
-    const exceptions = await prisma.disponibilite.findMany({
+    const exceptions = await (prisma as any).disponibilite.findMany({
       where: {
         userId,
         dateSpecifique: {
@@ -53,7 +64,7 @@ const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number
     });
 
     if (exceptions.length > 0) {
-      return exceptions.some((disp) => {
+      isAvailable = exceptions.some((disp: any) => {
         const [debutH, debutM] = disp.heureDebut.split(':').map(Number);
         const [finH, finM] = disp.heureFin.split(':').map(Number);
         const debutMinutes = debutH * 60 + debutM;
@@ -66,7 +77,7 @@ const checkDisponibilite = async (userId: string, dateHeure: Date, duree: number
     }
   }
 
-  return isAvailable;
+  return { available: isAvailable, hasDisponibilites: true };
 };
 
 // Fonction pour vérifier les conflits de rendez-vous
@@ -131,19 +142,46 @@ const checkConflitRendezVous = async (
 };
 
 export const getAllRendezVous = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const rendezVous = await prisma.rendezVous.findMany({
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new AppError('Authentification requise', 401);
+    }
+
+    // Construire la clause where selon le rôle
+    const whereClause: any = {};
+
+    // Si c'est un médecin, filtrer par son userId
+    if (currentUser.role === 'medecin') {
+      whereClause.userId = currentUser.id;
+    }
+    // Si c'est un patient, filtrer par son patientId
+    else if (currentUser.role === 'patient') {
+      whereClause.patientId = currentUser.id;
+    }
+    // Si c'est un admin, pas de filtre (voir tous les rendez-vous)
+
+    const rendezVous = await (prisma as any).rendezVous.findMany({
+      where: whereClause,
       include: {
         patient: {
           select: {
             id: true,
             nom: true,
             prenom: true,
+            dateNaissance: true,
+            sexe: true,
             telephone: true,
+            email: true,
+            adresse: true,
+            numeroSS: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
         user: {
@@ -175,7 +213,7 @@ export const getRendezVousById = async (
   try {
     const { id } = req.params;
 
-    const rendezVous = await prisma.rendezVous.findUnique({
+    const rendezVous = await (prisma as any).rendezVous.findUnique({
       where: { id },
       include: {
         patient: true,
@@ -205,7 +243,7 @@ export const getRendezVousByMedecin = async (
   try {
     const { userId } = req.params;
 
-    const rendezVous = await prisma.rendezVous.findMany({
+    const rendezVous = await (prisma as any).rendezVous.findMany({
       where: { userId },
       include: {
         patient: {
@@ -237,7 +275,7 @@ export const getRendezVousByPatient = async (
   try {
     const { patientId } = req.params;
 
-    const rendezVous = await prisma.rendezVous.findMany({
+    const rendezVous = await (prisma as any).rendezVous.findMany({
       where: { patientId },
       include: {
         user: {
@@ -267,7 +305,7 @@ export const createRendezVous = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { patientId, userId, dateHeure, duree, motif, notes } = req.body;
+    const { patientId, userId, dateHeure, motif, notes } = req.body;
     const currentUser = req.user;
 
     if (!currentUser) {
@@ -295,7 +333,7 @@ export const createRendezVous = async (
     }
 
     // Vérifier que l'utilisateur (médecin) existe
-    const user = await prisma.user.findUnique({
+    const user = await (prisma as any).user.findUnique({
       where: { id: userId },
     });
 
@@ -304,12 +342,75 @@ export const createRendezVous = async (
     }
 
     const dateHeureObj = new Date(dateHeure);
-    const dureeRdv = duree || 30;
+    
+    // Récupérer la durée depuis la disponibilité du médecin
+    const dateOnly = new Date(dateHeureObj.getFullYear(), dateHeureObj.getMonth(), dateHeureObj.getDate());
+    const heure = dateHeureObj.getHours();
+    const minutes = dateHeureObj.getMinutes();
+    const heureMinutes = heure * 60 + minutes;
+    
+    // Chercher une disponibilité pour cette date spécifique
+    let disponibilite = await (prisma as any).disponibilite.findFirst({
+      where: {
+        userId,
+        estDisponible: true,
+        dateSpecifique: {
+          gte: dateOnly,
+          lt: new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000), // Jour suivant
+        },
+      },
+    });
+
+    // Vérifier que l'heure du rendez-vous est dans la plage de disponibilité
+    if (disponibilite) {
+      const [debutH, debutM] = disponibilite.heureDebut.split(':').map(Number);
+      const [finH, finM] = disponibilite.heureFin.split(':').map(Number);
+      const debutMinutes = debutH * 60 + debutM;
+      const finMinutes = finH * 60 + finM;
+      
+      if (heureMinutes < debutMinutes || heureMinutes >= finMinutes) {
+        disponibilite = null; // L'heure n'est pas dans la plage
+      }
+    }
+
+    // Utiliser la durée de la disponibilité ou 30 minutes par défaut
+    const dureeRdv = disponibilite?.dureeConsultation || 30;
 
     // Vérifier les disponibilités du médecin
-    const isAvailable = await checkDisponibilite(userId, dateHeureObj, dureeRdv);
-    if (!isAvailable) {
-      throw new AppError('Le médecin n\'est pas disponible à cette heure', 409);
+    const disponibiliteCheck = await checkDisponibilite(userId, dateHeureObj, dureeRdv);
+    
+    // Si le médecin n'a pas de disponibilités définies, empêcher la création
+    if (!disponibiliteCheck.hasDisponibilites) {
+      const medecin = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        select: { prenom: true, nom: true, specialite: true },
+      });
+      const medecinName = medecin ? `Dr. ${medecin.prenom} ${medecin.nom}` : 'Le médecin';
+      throw new AppError(
+        `${medecinName} n'a pas encore défini ses disponibilités. Veuillez demander au médecin de définir ses disponibilités avant de créer un rendez-vous.`,
+        409
+      );
+    }
+    
+    // Si le médecin a des disponibilités mais n'est pas disponible à cette heure
+    if (!disponibiliteCheck.available) {
+      // Récupérer les informations du médecin pour un message plus informatif
+      const medecin = await (prisma as any).user.findUnique({
+        where: { id: userId },
+        select: { prenom: true, nom: true, specialite: true },
+      });
+      const medecinName = medecin ? `Dr. ${medecin.prenom} ${medecin.nom}` : 'Le médecin';
+      const dateFormatted = dateHeureObj.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      throw new AppError(
+        `${medecinName} n'est pas disponible à cette heure (${dateFormatted}).`,
+        409
+      );
     }
 
     // Vérifier les conflits avec d'autres rendez-vous
@@ -319,10 +420,10 @@ export const createRendezVous = async (
     }
 
     // Déterminer le statut selon le rôle
-    // Admin/Médecin → "planifie", Patient → "confirme"
-    const statut = currentUser.role === 'patient' ? 'confirme' : 'planifie';
+    // Admin/Médecin → "planifie", Patient → "en_attente" (en attente de confirmation par l'admin)
+    const statut = currentUser.role === 'patient' ? 'en_attente' : 'planifie';
 
-    const rendezVous = await prisma.rendezVous.create({
+    const rendezVous = await (prisma as any).rendezVous.create({
       data: {
         patientId,
         userId,
@@ -370,15 +471,31 @@ export const updateRendezVous = async (
       throw new AppError('Rendez-vous non trouvé', 404);
     }
 
-    const userId = updateData.userId || existingRendezVous.userId;
+    const userId = updateData.userId || (existingRendezVous as any).userId;
     const dateHeure = updateData.dateHeure ? new Date(updateData.dateHeure) : existingRendezVous.dateHeure;
     const duree = updateData.duree || existingRendezVous.duree;
 
     // Vérifier les disponibilités si la date/heure ou le médecin change
     if (updateData.dateHeure || updateData.userId || updateData.duree) {
-      const isAvailable = await checkDisponibilite(userId, dateHeure, duree);
-      if (!isAvailable) {
-        throw new AppError('Le médecin n\'est pas disponible à cette heure', 409);
+      const disponibiliteCheck = await checkDisponibilite(userId, dateHeure, duree);
+      if (!disponibiliteCheck.available && disponibiliteCheck.hasDisponibilites) {
+        // Récupérer les informations du médecin pour un message plus informatif
+        const medecin = await (prisma as any).user.findUnique({
+          where: { id: userId },
+          select: { prenom: true, nom: true, specialite: true },
+        });
+        const medecinName = medecin ? `Dr. ${medecin.prenom} ${medecin.nom}` : 'Le médecin';
+        const dateFormatted = dateHeure.toLocaleString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        throw new AppError(
+          `${medecinName} n'est pas disponible à cette heure (${dateFormatted}).`,
+          409
+        );
       }
 
       // Vérifier les conflits (en excluant le rendez-vous actuel)
@@ -393,7 +510,7 @@ export const updateRendezVous = async (
       updateData.dateHeure = new Date(updateData.dateHeure);
     }
 
-    const rendezVous = await prisma.rendezVous.update({
+    const rendezVous = await (prisma as any).rendezVous.update({
       where: { id },
       data: updateData,
       include: {
@@ -437,17 +554,75 @@ export const confirmRendezVous = async (
       throw new AppError('Seuls les administrateurs et médecins peuvent confirmer un rendez-vous', 403);
     }
 
-    // Le rendez-vous doit être en statut "confirme" pour être confirmé (passer à "planifie")
-    if (rendezVous.statut !== 'confirme') {
+    // Le rendez-vous doit être en statut "en_attente" pour être confirmé (passer à "confirme")
+    const statutStr = String(rendezVous.statut);
+    if (statutStr !== 'en_attente') {
       throw new AppError(
-        `Impossible de confirmer un rendez-vous avec le statut "${rendezVous.statut}"`,
+        `Impossible de confirmer un rendez-vous avec le statut "${rendezVous.statut}". Seuls les rendez-vous en attente peuvent être confirmés.`,
         400
       );
     }
 
-    const updatedRendezVous = await prisma.rendezVous.update({
+    const updatedRendezVous = await (prisma as any).rendezVous.update({
       where: { id },
-      data: { statut: 'planifie' },
+      data: { statut: 'confirme' },
+      include: {
+        patient: true,
+        user: true,
+      },
+    });
+
+    res.json({
+      status: 'success',
+      data: updatedRendezVous,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectRendezVous = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { raisonAnnulation } = req.body;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new AppError('Authentification requise', 401);
+    }
+
+    // Seuls les admins et médecins peuvent rejeter un rendez-vous
+    if (currentUser.role !== 'admin' && currentUser.role !== 'medecin') {
+      throw new AppError('Seuls les administrateurs et médecins peuvent rejeter un rendez-vous', 403);
+    }
+
+    const rendezVous = await (prisma as any).rendezVous.findUnique({
+      where: { id },
+    });
+
+    if (!rendezVous) {
+      throw new AppError('Rendez-vous non trouvé', 404);
+    }
+
+    // Le rendez-vous doit être en statut "en_attente" pour être rejeté
+    const statutStr = String(rendezVous.statut);
+    if (statutStr !== 'en_attente') {
+      throw new AppError(
+        `Impossible de rejeter un rendez-vous avec le statut "${rendezVous.statut}". Seuls les rendez-vous en attente peuvent être rejetés.`,
+        400
+      );
+    }
+
+    const updatedRendezVous = await (prisma as any).rendezVous.update({
+      where: { id },
+      data: {
+        statut: 'annule',
+        raisonAnnulation: raisonAnnulation || 'Rendez-vous rejeté par l\'administrateur',
+      },
       include: {
         patient: true,
         user: true,

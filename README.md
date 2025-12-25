@@ -12,12 +12,15 @@ Projet semestriel fullstack (React + Node.js) pour la gestion complète d'un cab
 ## 🎯 Vue d'ensemble
 
 Cette application permet de gérer :
-- ✅ Prise de rendez-vous en ligne
+- ✅ Prise de rendez-vous en ligne (avec validation automatique des disponibilités)
 - ✅ Gestion des dossiers patients
 - ✅ Suivi des consultations médicales
 - ✅ Prescriptions électroniques
-- ✅ Facturation automatique
-- ✅ Gestion des disponibilités des médecins
+- ✅ Facturation automatique (création et gestion par l'admin)
+- ✅ Gestion des disponibilités des médecins (par date et heure spécifique)
+- ✅ Consultation des disponibilités pour les patients
+- ✅ Gestion des rendez-vous par l'admin (création, confirmation, rejet, modification, suppression)
+- ✅ Accès aux consultations et profil pour les patients
 
 ## 📊 Modèle de Données
 

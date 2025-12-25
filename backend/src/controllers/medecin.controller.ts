@@ -56,6 +56,7 @@ export const getMedecinById = async (
         photo: true,
         disponibilites: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 

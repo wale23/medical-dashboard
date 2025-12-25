@@ -40,10 +40,6 @@ const RendezVousDetailPage = () => {
     enabled: !!id,
   });
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
   const confirmRendezVousMutation = useMutation({
     mutationFn: async () => {
       const response = await api.patch(`/rendez-vous/${id}/confirm`);
@@ -66,6 +62,10 @@ const RendezVousDetailPage = () => {
     }
   };
 
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
   if (error || !rendezVous) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -84,6 +84,7 @@ const RendezVousDetailPage = () => {
 
   const getStatusColor = (statut: string) => {
     const colors: Record<string, string> = {
+      en_attente: 'bg-orange-100 text-orange-800',
       planifie: 'bg-yellow-100 text-yellow-800',
       confirme: 'bg-blue-100 text-blue-800',
       termine: 'bg-green-100 text-green-800',
@@ -91,6 +92,18 @@ const RendezVousDetailPage = () => {
       absent: 'bg-gray-100 text-gray-800',
     };
     return colors[statut] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusLabel = (statut: string) => {
+    const labels: Record<string, string> = {
+      en_attente: 'En attente',
+      planifie: 'Planifié',
+      confirme: 'Confirmé',
+      termine: 'Terminé',
+      annule: 'Annulé',
+      absent: 'Absent',
+    };
+    return labels[statut] || statut;
   };
 
   return (
@@ -135,7 +148,7 @@ const RendezVousDetailPage = () => {
                       rendezVous.statut
                     )}`}
                   >
-                    {rendezVous.statut}
+                    {getStatusLabel(rendezVous.statut)}
                   </span>
                 </p>
               </div>
@@ -252,7 +265,7 @@ const RendezVousDetailPage = () => {
           <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Actions</h2>
             <div className="space-y-2">
-              {rendezVous.statut === 'confirme' &&
+              {rendezVous.statut === 'en_attente' &&
                 (currentUser?.userRole === 'admin' || currentUser?.userRole === 'medecin') && (
                   <button
                     onClick={handleConfirm}

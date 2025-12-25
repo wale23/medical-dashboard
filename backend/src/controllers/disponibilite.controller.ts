@@ -16,15 +16,21 @@ export const getAllDisponibilites = async (
             nom: true,
             prenom: true,
             specialite: true,
+            userRole: true, // Inclure le rôle pour filtrer côté frontend
           },
         },
       },
       orderBy: [{ userId: 'asc' }, { jourSemaine: 'asc' }],
     });
 
+    // Filtrer pour exclure les disponibilités des admins (seuls les médecins ont des disponibilités)
+    const disponibilitesMedecins = disponibilites.filter(
+      (disp) => disp.user.userRole === 'medecin'
+    );
+
     res.json({
       status: 'success',
-      data: disponibilites,
+      data: disponibilitesMedecins,
     });
   } catch (error) {
     next(error);
@@ -68,8 +74,11 @@ export const getDisponibilitesByMedecin = async (
     const { userId } = req.params;
 
     const disponibilites = await prisma.disponibilite.findMany({
-      where: { userId, estDisponible: true },
-      orderBy: { jourSemaine: 'asc' },
+      where: { userId },
+      orderBy: [
+        { dateSpecifique: { sort: 'asc', nulls: 'last' } },
+        { jourSemaine: 'asc' },
+      ],
     });
 
     res.json({

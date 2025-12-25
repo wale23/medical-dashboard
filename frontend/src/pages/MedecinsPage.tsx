@@ -892,8 +892,8 @@ const MedecinsPage = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+              </div>
+            </div>
       )}
 
       {/* Modal de confirmation de suppression */}
@@ -938,7 +938,7 @@ const MedecinsPage = () => {
               </button>
             </div>
           </div>
-        </div>
+      </div>
       )}
     </div>
   );

@@ -6,11 +6,17 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
+import PatientProfilePage from './pages/PatientProfilePage';
 import RendezVousPage from './pages/RendezVousPage';
 import RendezVousDetailPage from './pages/RendezVousDetailPage';
 import ConsultationsPage from './pages/ConsultationsPage';
+import ConsultationDetailPage from './pages/ConsultationDetailPage';
+import FacturesPage from './pages/FacturesPage';
 import MedecinsPage from './pages/MedecinsPage';
 import DisponibilitesPage from './pages/DisponibilitesPage';
+import AdminDisponibilitesPage from './pages/AdminDisponibilitesPage';
+import PatientDisponibilitesPage from './pages/PatientDisponibilitesPage';
+import UserProfilePage from './pages/UserProfilePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -92,6 +98,22 @@ function App() {
           }
         />
         <Route
+          path="/consultations/:id"
+          element={
+            <ProtectedRoute>
+              <ConsultationDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/factures"
+          element={
+            <AdminRoute>
+              <FacturesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
           path="/medecins"
           element={
             <AdminRoute>
@@ -104,6 +126,38 @@ function App() {
           element={
             <ProtectedRoute>
               <DisponibilitesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/disponibilites"
+          element={
+            <AdminRoute>
+              <AdminDisponibilitesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patient/profile"
+          element={
+            <ProtectedRoute>
+              <PatientProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patient/disponibilites"
+          element={
+            <ProtectedRoute>
+              <PatientDisponibilitesPage />
             </ProtectedRoute>
           }
         />

@@ -19,37 +19,37 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 └──────┬──────┘
        │
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-01 : Créer un compte                         │
+       ├──────┤  UC-01 : Se connecter                            │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-02 : Se connecter                            │
+       ├──────┤  UC-02 : Consulter les disponibilités de tous les médecins
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-03 : Consulter les disponibilités            │
+       ├──────┤  UC-03 : Prendre un rendez-vous                  │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-04 : Prendre un rendez-vous                  │
+       ├──────┤  UC-04 : Modifier un rendez-vous                 │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-05 : Modifier un rendez-vous                 │
+       ├──────┤  UC-05 : Annuler un rendez-vous                  │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-06 : Annuler un rendez-vous                  │
+       ├──────┤  UC-06 : Consulter son dossier médical           │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-07 : Consulter son dossier médical           │
+       ├──────┤  UC-07 : Consulter l'historique des consultations│
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-08 : Consulter l'historique des consultations│
+       ├──────┤  UC-08 : Consulter les prescriptions             │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-09 : Consulter les prescriptions             │
+       ├──────┤  UC-09 : Consulter les factures                  │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-10 : Consulter les factures                  │
+       ├──────┤  UC-10 : Payer une facture                       │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       └──────┤  UC-11 : Payer une facture                       │
+       └──────┤  UC-11 : Consulter son profil                    │
               └──────────────────────────────────────────────────┘
 
 ┌─────────────┐
@@ -63,17 +63,18 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
        ├──────┤  UC-13 : Consulter ses rendez-vous               │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
+       ├──────┤  UC-11 : Consulter son profil                    │
+       │      └──────────────────────────────────────────────────┘
+       │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-14 : Gérer les disponibilités                │
-       │      │      ├── UC-14.1 : Définir une disponibilité     │
+       │      │      ├── UC-14.1 : Définir une disponibilité par date et heure
        │      │      ├── UC-14.2 : Modifier une disponibilité    │
-       │      │      └── UC-14.3 : Supprimer une disponibilité   │
+       │      │      ├── UC-14.3 : Supprimer une disponibilité   │
+       │      │      └── UC-14.4 : Marquer une disponibilité comme indisponible
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-15 : Gérer les patients                      │
-       │      │      ├── UC-15.1 : Créer un patient              │
-       │      │      ├── UC-15.2 : Consulter un patient          │
-       │      │      ├── UC-15.3 : Modifier un patient           │
-       │      │      └── UC-15.4 : Supprimer un patient          │
+       │      │      └── UC-15.2 : Consulter un patient          │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-16 : Effectuer une consultation              │
@@ -88,13 +89,9 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
        ├──────┤  UC-18 : Mettre à jour un dossier médical        │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       ├──────┤  UC-19 : Gérer les rendez-vous                   │
-       │      │      ├── UC-19.1 : Confirmer un rendez-vous      │
-       │      │      ├── UC-19.2 : Marquer un rendez-vous terminé│
-       │      │      └── UC-19.3 : Marquer un rendez-vous absent │
-       │      └──────────────────────────────────────────────────┘
-       │      ┌──────────────────────────────────────────────────┐
-       └──────┤  UC-20 : Générer une facture                     │
+       └──────┤  UC-19 : Gérer les rendez-vous                   │
+              │      ├── UC-19.2 : Marquer un rendez-vous terminé│
+              │      └── UC-19.3 : Marquer un rendez-vous absent │
               └──────────────────────────────────────────────────┘
 
 ┌──────────────┐
@@ -106,28 +103,31 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
        ├──────┤  UC-21 : Se connecter (comme admin)              │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
+       ├──────┤  UC-11 : Consulter son profil                    │
+       │      └──────────────────────────────────────────────────┘
+       │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-22 : Gérer les comptes médecins              │
        │      │      ├── UC-22.1 : Créer un compte médecin       │
        │      │      ├── UC-22.2 : Consulter les médecins        │
-       │      │      ├── UC-22.3 : Modifier un médecin           │
-       │      │      └── UC-22.4 : Désactiver un médecin         │
+       │      │      └── UC-22.3 : Modifier un médecin           │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-23 : Gérer les dossiers patients             │
-       │      │      ├── UC-23.1 : Consulter tous les patients   │
-       │      │      ├── UC-23.2 : Modifier un dossier médical   │
-       │      │      └── UC-23.3 : Archiver un dossier           │
+       │      │      ├── UC-23.1 : Créer un patient               │
+       │      │      ├── UC-23.2 : Consulter tous les patients   │
+       │      │      └── UC-23.3 : Modifier un dossier médical   │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-24 : Gérer la facturation                    │
        │      │      ├── UC-24.1 : Consulter toutes les factures │
-       │      │      ├── UC-24.2 : Valider un paiement           │
-       │      │      └── UC-24.3 : Générer des rapports          │
+       │      │      ├── UC-24.2 : Créer une facture              │
+       │      │      ├── UC-24.3 : Modifier une facture          │
+       │      │      ├── UC-24.4 : Valider un paiement           │
+       │      │      └── UC-24.5 : Générer des rapports          │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-25 : Gérer les horaires                      │
-       │      │      ├── UC-25.1 : Consulter tous les horaires   │
-       │      │      └── UC-25.2 : Modifier les horaires         │
+       │      │      └── UC-25.1 : Consulter tous les horaires   │
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
        ├──────┤  UC-26 : Consulter les statistiques              │
@@ -136,10 +136,12 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
        │      │      └── UC-26.3 : Statistiques des consultations│
        │      └──────────────────────────────────────────────────┘
        │      ┌──────────────────────────────────────────────────┐
-       └──────┤  UC-27 : Générer des rapports                    │
-              │      ├── UC-27.1 : Rapport mensuel               │
-              │      ├── UC-27.2 : Rapport annuel                │
-              │      └── UC-27.3 : Rapport personnalisé          │
+       └──────┤  UC-28 : Gérer les rendez-vous (admin)           │
+              │      ├── UC-28.1 : Créer un rendez-vous           │
+              │      ├── UC-28.2 : Confirmer un rendez-vous en attente
+              │      ├── UC-28.3 : Rejeter un rendez-vous en attente
+              │      ├── UC-28.4 : Modifier un rendez-vous planifié/confirmé
+              │      └── UC-28.5 : Supprimer un rendez-vous planifié/confirmé
               └──────────────────────────────────────────────────┘
 
 ```
@@ -150,44 +152,31 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ### ACTEUR 1 : PATIENT
 
-#### UC-01 : Créer un compte
-**Description** : Un patient peut créer un compte dans le système  
-**Préconditions** : Le patient n'a pas encore de compte  
-**Scénario principal** :
-1. Le patient accède à la page d'inscription
-2. Il saisit ses informations (nom, prénom, date de naissance, téléphone, email, etc.)
-3. Le système valide les données
-4. Le système crée le compte et le dossier médical associé
-5. Le compte est créé avec succès
+**Note importante** : Les patients ne peuvent pas créer leur propre compte. Ils sont créés par l'administrateur ou un médecin. Le patient reçoit ensuite ses identifiants pour se connecter.
 
-**Scénarios alternatifs** :
-- 3a. Les données sont invalides → affichage d'un message d'erreur
-- 3b. L'email ou le téléphone existe déjà → message d'erreur
-
----
-
-#### UC-02 : Se connecter
+#### UC-01 : Se connecter
 **Description** : Le patient se connecte à son compte  
-**Préconditions** : Le patient a un compte actif  
+**Préconditions** : Le patient a un compte créé par l'admin/médecin et a reçu ses identifiants  
 **Scénario principal** :
-1. Le patient saisit son email et son mot de passe
+1. Le patient saisit son email (ou téléphone) et son mot de passe
 2. Le système vérifie les identifiants
 3. Le système authentifie le patient
 4. Le patient accède à son espace personnel
 
 ---
 
-#### UC-03 : Consulter les disponibilités
-**Description** : Le patient consulte les disponibilités des médecins  
+#### UC-02 : Consulter les disponibilités de tous les médecins
+**Description** : Le patient consulte les disponibilités de tous les médecins du cabinet  
 **Scénario principal** :
-1. Le patient sélectionne un médecin
-2. Le patient sélectionne une date
-3. Le système affiche les créneaux disponibles
-4. Le patient voit les heures libres
+1. Le patient accède à la page "Disponibilités"
+2. Le système affiche toutes les disponibilités disponibles de tous les médecins
+3. Le patient peut filtrer par médecin (optionnel)
+4. Le patient voit les créneaux disponibles avec les informations du médecin (nom, spécialité)
+5. Le système affiche uniquement les disponibilités marquées comme "disponibles"
 
 ---
 
-#### UC-04 : Prendre un rendez-vous
+#### UC-03 : Prendre un rendez-vous
 **Description** : Le patient prend un rendez-vous avec un médecin  
 **Préconditions** : Le patient est connecté et le créneau est disponible  
 **Scénario principal** :
@@ -195,15 +184,20 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 2. Le patient choisit une date et heure disponible
 3. Le patient saisit le motif de consultation (optionnel)
 4. Le système vérifie la disponibilité
-5. Le système crée le rendez-vous
-6. Le système envoie une confirmation
-7. Le rendez-vous est créé avec le statut "planifié"
+5. Le système vérifie que le médecin a des disponibilités définies
+6. Le système calcule automatiquement la durée du rendez-vous à partir de la disponibilité du médecin
+7. Le système crée le rendez-vous
+8. Le système envoie une confirmation
+9. Le rendez-vous est créé avec le statut "en_attente" (si créé par patient) ou "planifié" (si créé par admin)
 
-**Inclusions** : UC-03 (Consulter les disponibilités)
+**Inclusions** : UC-02 (Consulter les disponibilités)
+
+**Scénarios alternatifs** :
+- 5a. Le médecin n'a pas de disponibilités définies → Le système empêche la création du rendez-vous
 
 ---
 
-#### UC-05 : Modifier un rendez-vous
+#### UC-04 : Modifier un rendez-vous
 **Description** : Le patient modifie un rendez-vous existant  
 **Préconditions** : Le patient a un rendez-vous planifié  
 **Scénario principal** :
@@ -216,7 +210,7 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-06 : Annuler un rendez-vous
+#### UC-05 : Annuler un rendez-vous
 **Description** : Le patient annule un rendez-vous  
 **Préconditions** : Le patient a un rendez-vous actif  
 **Scénario principal** :
@@ -229,7 +223,7 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-07 : Consulter son dossier médical
+#### UC-06 : Consulter son dossier médical
 **Description** : Le patient consulte son dossier médical  
 **Préconditions** : Le patient est connecté  
 **Scénario principal** :
@@ -239,17 +233,18 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-08 : Consulter l'historique des consultations
+#### UC-07 : Consulter l'historique des consultations
 **Description** : Le patient consulte son historique de consultations  
 **Scénario principal** :
 1. Le patient accède à l'historique
-2. Le système affiche la liste des consultations
+2. Le système affiche uniquement les consultations du patient connecté
 3. Le patient peut consulter les détails d'une consultation
-4. Le système affiche le diagnostic, les observations, etc.
+4. Le système affiche le diagnostic, les observations, prescriptions, factures, etc.
+5. Le patient peut voir les informations du médecin qui a effectué la consultation
 
 ---
 
-#### UC-09 : Consulter les prescriptions
+#### UC-08 : Consulter les prescriptions
 **Description** : Le patient consulte ses prescriptions  
 **Scénario principal** :
 1. Le patient accède à ses prescriptions
@@ -258,7 +253,7 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-10 : Consulter les factures
+#### UC-09 : Consulter les factures
 **Description** : Le patient consulte ses factures  
 **Scénario principal** :
 1. Le patient accède à ses factures
@@ -267,7 +262,7 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-11 : Payer une facture
+#### UC-10 : Payer une facture
 **Description** : Le patient paie une facture en attente  
 **Préconditions** : Le patient a une facture avec le statut "en_attente"  
 **Scénario principal** :
@@ -278,7 +273,18 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 5. Le système enregistre la date de paiement
 6. Le système génère un reçu
 
-**Inclusions** : UC-10 (Consulter les factures)
+**Inclusions** : UC-09 (Consulter les factures)
+
+---
+
+#### UC-11 : Consulter son profil
+**Description** : Le patient consulte son profil personnel  
+**Préconditions** : Le patient est connecté  
+**Scénario principal** :
+1. Le patient accède à son profil
+2. Le système affiche ses informations personnelles
+3. Le système affiche son dossier médical complet (allergies, antécédents, vaccinations, etc.)
+4. Le patient peut voir toutes ses informations médicales
 
 ---
 
@@ -308,11 +314,14 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 #### UC-14 : Gérer les disponibilités
 **Description** : Le médecin gère ses horaires de disponibilité
 
-##### UC-14.1 : Définir une disponibilité
+##### UC-14.1 : Définir une disponibilité par date et heure
 1. Le médecin accède à la gestion des disponibilités
-2. Le médecin définit un jour de la semaine et des heures
-3. Le médecin peut définir une exception (date spécifique)
-4. Le système enregistre la disponibilité
+2. Le médecin sélectionne une date spécifique
+3. Le médecin définit l'heure de début et l'heure de fin
+4. Le médecin définit la durée de consultation (en minutes)
+5. Le médecin peut marquer la disponibilité comme "disponible" ou "indisponible"
+6. Le médecin peut ajouter des notes (optionnel)
+7. Le système enregistre la disponibilité avec `estException: true` et `dateSpecifique`
 
 ##### UC-14.2 : Modifier une disponibilité
 1. Le médecin sélectionne une disponibilité existante
@@ -324,32 +333,22 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 2. Le médecin confirme la suppression
 3. Le système supprime la disponibilité
 
+##### UC-14.4 : Marquer une disponibilité comme indisponible
+1. Le médecin crée une disponibilité
+2. Le médecin décoche la case "Disponible"
+3. Le système enregistre la disponibilité avec `estDisponible: false`
+4. La disponibilité apparaît dans la liste avec le statut "Indisponible"
+
 ---
 
 #### UC-15 : Gérer les patients
-**Description** : Le médecin gère les dossiers patients
-
-##### UC-15.1 : Créer un patient
-1. Le médecin accède à la création de patient
-2. Le médecin saisit les informations du patient
-3. Le système crée le patient et son dossier médical
-4. Le système génère un identifiant unique
+**Description** : Le médecin consulte les dossiers patients
 
 ##### UC-15.2 : Consulter un patient
 1. Le médecin recherche un patient (nom, téléphone, etc.)
 2. Le système affiche les résultats
 3. Le médecin sélectionne un patient
 4. Le système affiche toutes les informations du patient
-
-##### UC-15.3 : Modifier un patient
-1. Le médecin consulte un patient
-2. Le médecin modifie les informations
-3. Le système met à jour les données
-
-##### UC-15.4 : Supprimer un patient
-1. Le médecin sélectionne un patient
-2. Le médecin confirme la suppression
-3. Le système supprime le patient et son dossier (cascade)
 
 ---
 
@@ -405,11 +404,6 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 #### UC-19 : Gérer les rendez-vous
 **Description** : Le médecin gère le statut de ses rendez-vous
 
-##### UC-19.1 : Confirmer un rendez-vous
-1. Le médecin consulte un rendez-vous "planifié"
-2. Le médecin confirme le rendez-vous
-3. Le système met à jour le statut à "confirmé"
-
 ##### UC-19.2 : Marquer un rendez-vous terminé
 1. Le médecin termine la consultation
 2. Le médecin marque le rendez-vous comme "terminé"
@@ -419,21 +413,6 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 1. Le patient ne s'est pas présenté
 2. Le médecin marque le rendez-vous comme "absent"
 3. Le système met à jour le statut
-
----
-
-#### UC-20 : Générer une facture
-**Description** : Le médecin génère une facture pour une consultation  
-**Préconditions** : Une consultation a été effectuée  
-**Scénario principal** :
-1. Le médecin accède à une consultation terminée
-2. Le médecin génère une facture
-3. Le système calcule le montant (avec TVA si applicable)
-4. Le système génère un numéro de facture unique
-5. Le système crée la facture avec le statut "en_attente"
-6. Le système lie la facture à la consultation
-
-**Inclusions** : UC-16 (Effectuer une consultation)
 
 ---
 
@@ -467,29 +446,34 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 2. L'admin modifie les informations
 3. Le système met à jour le compte
 
-##### UC-22.4 : Désactiver un médecin
-1. L'admin sélectionne un médecin
-2. L'admin désactive le compte
-3. Le médecin ne peut plus se connecter
-
 ---
 
 #### UC-23 : Gérer les dossiers patients
 **Description** : L'administrateur gère tous les dossiers patients
 
-##### UC-23.1 : Consulter tous les patients
+##### UC-23.1 : Créer un patient
+1. L'admin accède à la gestion des patients
+2. L'admin crée un nouveau patient
+3. L'admin saisit les informations du patient (nom, prénom, date de naissance, téléphone, email, numéro SS, etc.)
+4. L'admin peut définir un mot de passe pour le patient (optionnel)
+5. Le système valide les données (unicité du téléphone, email, numéro SS)
+6. Le système crée le patient et le dossier médical associé
+7. Le système génère un identifiant unique
+8. Le patient peut ensuite se connecter avec ses identifiants
+
+**Scénarios alternatifs** :
+- 5a. Le téléphone, email ou numéro SS existe déjà → message d'erreur
+- 5b. Les données sont invalides → affichage d'un message d'erreur
+
+##### UC-23.2 : Consulter tous les patients
 1. L'admin accède à la liste complète des patients
 2. Le système affiche tous les patients avec possibilité de recherche/filtre
 
-##### UC-23.2 : Modifier un dossier médical
+##### UC-23.3 : Modifier un dossier médical
 1. L'admin sélectionne un patient
 2. L'admin modifie le dossier médical
 3. Le système enregistre les modifications
 
-##### UC-23.3 : Archiver un dossier
-1. L'admin sélectionne un patient inactif
-2. L'admin archive le dossier
-3. Le système archive le dossier (conservation des données)
 
 ---
 
@@ -499,13 +483,29 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 ##### UC-24.1 : Consulter toutes les factures
 1. L'admin accède à la facturation
 2. Le système affiche toutes les factures avec filtres
+3. L'admin peut voir le patient, la consultation associée, le montant, le statut de paiement
 
-##### UC-24.2 : Valider un paiement
+##### UC-24.2 : Créer une facture
+1. L'admin accède à une consultation
+2. L'admin crée une facture pour la consultation
+3. L'admin définit le montant de la consultation
+4. Le système calcule le montant total (avec TVA si applicable)
+5. Le système génère un numéro de facture unique
+6. Le système crée la facture avec le statut "en_attente"
+
+##### UC-24.3 : Modifier une facture
+1. L'admin sélectionne une facture
+2. L'admin modifie le statut de paiement, le mode de paiement, la date de paiement, ou les notes
+3. Le système met à jour la facture
+
+##### UC-24.4 : Valider un paiement
 1. L'admin consulte une facture
 2. L'admin valide un paiement effectué
-3. Le système met à jour le statut
+3. L'admin sélectionne le mode de paiement
+4. Le système met à jour le statut à "payée"
+5. Le système enregistre la date de paiement
 
-##### UC-24.3 : Générer des rapports
+##### UC-24.5 : Générer des rapports
 1. L'admin sélectionne une période
 2. Le système génère un rapport financier
 3. Le système exporte le rapport (PDF/Excel)
@@ -513,15 +513,11 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 ---
 
 #### UC-25 : Gérer les horaires
-**Description** : L'administrateur peut consulter et modifier tous les horaires
+**Description** : L'administrateur peut consulter tous les horaires
 
 ##### UC-25.1 : Consulter tous les horaires
 1. L'admin accède aux horaires de tous les médecins
 2. Le système affiche un calendrier global
-
-##### UC-25.2 : Modifier les horaires
-1. L'admin peut modifier les disponibilités de n'importe quel médecin
-2. Le système met à jour les horaires
 
 ---
 
@@ -545,39 +541,58 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 
 ---
 
-#### UC-27 : Générer des rapports
-**Description** : L'administrateur génère différents types de rapports
+---
 
-##### UC-27.1 : Rapport mensuel
-- Synthèse mensuelle de l'activité
-- Statistiques financières
-- Liste des patients
+#### UC-28 : Gérer les rendez-vous (admin)
+**Description** : L'administrateur gère tous les rendez-vous du cabinet
 
-##### UC-27.2 : Rapport annuel
-- Bilan annuel complet
-- Évolution sur l'année
-- Tendances
+##### UC-28.1 : Créer un rendez-vous
+1. L'admin accède à la gestion des rendez-vous
+2. L'admin sélectionne un patient et un médecin
+3. L'admin choisit une date et heure
+4. Le système vérifie que le médecin a des disponibilités définies
+5. Le système calcule automatiquement la durée à partir de la disponibilité du médecin
+6. Le système crée le rendez-vous avec le statut "planifié"
 
-##### UC-27.3 : Rapport personnalisé
-- L'admin définit les critères
-- Le système génère un rapport sur mesure
+##### UC-28.2 : Confirmer un rendez-vous en attente
+1. L'admin consulte un rendez-vous avec le statut "en_attente"
+2. L'admin clique sur l'icône de confirmation
+3. Le système met à jour le statut à "confirme"
+
+##### UC-28.3 : Rejeter un rendez-vous en attente
+1. L'admin consulte un rendez-vous avec le statut "en_attente"
+2. L'admin clique sur l'icône de rejet
+3. Le système met à jour le statut à "annule"
+
+##### UC-28.4 : Modifier un rendez-vous planifié/confirmé
+1. L'admin sélectionne un rendez-vous avec le statut "planifie" ou "confirme"
+2. L'admin clique sur l'icône d'édition
+3. L'admin modifie les informations (date, heure, patient, médecin, motif)
+4. Le système vérifie la disponibilité
+5. Le système met à jour le rendez-vous
+
+##### UC-28.5 : Supprimer un rendez-vous planifié/confirmé
+1. L'admin sélectionne un rendez-vous avec le statut "planifie" ou "confirme"
+2. L'admin clique sur l'icône de suppression
+3. L'admin confirme la suppression
+4. Le système supprime le rendez-vous
 
 ---
 
 ## Relations entre les cas d'utilisation
 
 ### Inclusion (<<include>>)
-- **UC-04** inclut **UC-03** : Prendre un rendez-vous nécessite de consulter les disponibilités
-- **UC-11** inclut **UC-10** : Payer une facture nécessite de consulter les factures
+- **UC-03** inclut **UC-02** : Prendre un rendez-vous nécessite de consulter les disponibilités
+- **UC-10** inclut **UC-09** : Payer une facture nécessite de consulter les factures
 - **UC-17** inclut **UC-16** : Créer une prescription nécessite une consultation
-- **UC-20** inclut **UC-16** : Générer une facture nécessite une consultation
+- **UC-28.1** inclut **UC-02** : Créer un rendez-vous (admin) nécessite de consulter les disponibilités
 
 ### Extension (<<extend>>)
 - **UC-17** étend **UC-16** : Après une consultation, on peut créer une prescription
-- **UC-20** étend **UC-16** : Après une consultation, on peut générer une facture
 
 ### Généralisation
 - Tous les acteurs peuvent se connecter (généralisation du cas d'utilisation "Se connecter")
+- Tous les acteurs peuvent consulter leur profil (UC-11)
 
 ---
 
@@ -586,16 +601,17 @@ Ce diagramme représente tous les cas d'utilisation du système avec les acteurs
 | Acteur | Nombre de cas d'utilisation |
 |--------|----------------------------|
 | **Patient** | 11 cas d'utilisation |
-| **Médecin** | 9 cas d'utilisation principaux (+ sous-cas) |
+| **Médecin** | 8 cas d'utilisation principaux (+ sous-cas) |
 | **Administrateur** | 7 cas d'utilisation principaux (+ sous-cas) |
-| **TOTAL** | **27 cas d'utilisation principaux** |
+| **TOTAL** | **26 cas d'utilisation principaux** |
 
 ---
 
 ## Remarques importantes
 
-1. **Sécurité** : Tous les cas d'utilisation nécessitent une authentification (sauf création de compte)
-2. **Permissions** : L'administrateur hérite de tous les droits du médecin
-3. **Traçabilité** : Toutes les actions importantes sont enregistrées (createdAt, updatedAt)
-4. **Intégrité** : Les suppressions en cascade garantissent la cohérence des données
+1. **Création de compte patient** : Les patients ne peuvent pas créer leur propre compte. Ils sont créés uniquement par l'administrateur ou un médecin via UC-23.1. Le patient reçoit ensuite ses identifiants pour se connecter.
+2. **Sécurité** : Tous les cas d'utilisation nécessitent une authentification (sauf création de compte médecin/admin via register)
+3. **Permissions** : L'administrateur hérite de tous les droits du médecin
+4. **Traçabilité** : Toutes les actions importantes sont enregistrées (createdAt, updatedAt)
+5. **Intégrité** : Les suppressions en cascade garantissent la cohérence des données
 

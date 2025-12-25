@@ -19,7 +19,7 @@ export interface RegisterData {
 export interface AuthResponse {
   status: string;
   token: string;
-  user: {
+  user?: {
     id: string;
     nom: string;
     prenom: string;
@@ -27,12 +27,28 @@ export interface AuthResponse {
     specialite: string;
     userRole: string;
   };
+  patient?: {
+    id: string;
+    nom: string;
+    prenom: string;
+    telephone: string;
+    email?: string;
+  };
+}
+
+export interface PatientLoginCredentials {
+  telephone: string;
+  motDePasse: string;
 }
 
 export const authService = {
-
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/login', credentials);
+    return response.data;
+  },
+
+  loginPatient: async (credentials: PatientLoginCredentials): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/patient/login', credentials);
     return response.data;
   },
 

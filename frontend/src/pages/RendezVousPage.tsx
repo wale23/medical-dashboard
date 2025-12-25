@@ -15,7 +15,6 @@ const createRendezVousSchema = z.object({
   patientId: z.string().min(1, 'Le patient est requis'),
   userId: z.string().min(1, 'Le médecin est requis'),
   dateHeure: z.string().min(1, 'La date et l\'heure sont requises'),
-  duree: z.number().min(15, 'La durée minimum est de 15 minutes').max(240, 'La durée maximum est de 240 minutes').default(30),
   motif: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -36,7 +35,7 @@ type UpdateRendezVousFormData = z.infer<typeof updateRendezVousSchema>;
 
 const RendezVousPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user: currentUser, patient: currentPatient } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -65,21 +64,55 @@ const RendezVousPage = () => {
     },
   });
 
-  const { data: patients } = useQuery({
+  // Si c'est un médecin, récupérer uniquement ses patients (ceux qui ont des rendez-vous avec lui)
+  // Si c'est un admin, récupérer tous les patients
+  const { data: allPatients } = useQuery({
     queryKey: ['patients'],
     queryFn: async () => {
       const response = await api.get('/patients');
       return response.data.data as Patient[];
     },
+    enabled: currentUser?.userRole === 'admin', // Seulement si admin
   });
 
-  const { data: users } = useQuery({
+  // Récupérer les rendez-vous du médecin pour extraire ses patients
+  const { data: medecinRendezVous } = useQuery({
+    queryKey: ['rendez-vous', 'medecin', currentUser?.id],
+    queryFn: async () => {
+      const response = await api.get('/rendez-vous');
+      const allRendezVous = response.data.data as (RendezVous & { patient: Patient })[];
+      // Filtrer les rendez-vous du médecin connecté
+      return allRendezVous.filter((rdv) => rdv.userId === currentUser?.id);
+    },
+    enabled: currentUser?.userRole === 'medecin' && !!currentUser?.id, // Seulement si médecin
+  });
+
+  // Extraire les patients uniques des rendez-vous du médecin
+  const medecinPatients = medecinRendezVous
+    ? Array.from(
+        new Map(
+          medecinRendezVous
+            .map((rdv) => rdv.patient)
+            .filter((patient) => patient != null)
+            .map((patient) => [patient!.id, patient!])
+        ).values()
+      )
+    : [];
+
+  // Déterminer les patients à afficher selon le rôle
+  const patients = currentUser?.userRole === 'admin' ? allPatients : medecinPatients;
+
+  const { data: allUsers } = useQuery({
     queryKey: ['medecins'],
     queryFn: async () => {
       const response = await api.get('/medecins');
       return response.data.data as User[];
     },
+    enabled: currentUser?.userRole === 'admin' || currentPatient !== null, // Seulement si admin ou patient
   });
+
+  // Filtrer pour ne garder que les médecins (exclure les admins)
+  const users = allUsers?.filter((user) => user.userRole === 'medecin');
 
   const {
     register,
@@ -91,7 +124,7 @@ const RendezVousPage = () => {
   } = useForm<CreateRendezVousFormData>({
     resolver: zodResolver(createRendezVousSchema),
     defaultValues: {
-      duree: 30,
+      userId: currentUser?.userRole === 'medecin' ? currentUser.id : '',
     },
   });
 
@@ -181,6 +214,36 @@ const RendezVousPage = () => {
     },
   });
 
+  const confirmRendezVousMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch(`/rendez-vous/${id}/confirm`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['rendez-vous'] });
+      showSuccessAlert(data?.message || 'Rendez-vous confirmé avec succès');
+    },
+    onError: (error: any) => {
+      const errorMessage = getErrorMessage(error);
+      showErrorAlert(errorMessage);
+    },
+  });
+
+  const rejectRendezVousMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch(`/rendez-vous/${id}/reject`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['rendez-vous'] });
+      showSuccessAlert(data?.message || 'Rendez-vous rejeté avec succès');
+    },
+    onError: (error: any) => {
+      const errorMessage = getErrorMessage(error);
+      showErrorAlert(errorMessage);
+    },
+  });
+
   const deleteRendezVousMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await api.delete(`/rendez-vous/${id}`);
@@ -211,7 +274,8 @@ const RendezVousPage = () => {
   const openModal = () => {
     setIsModalOpen(true);
     reset({
-      duree: 30,
+      patientId: currentPatient?.id || '',
+      userId: currentUser?.userRole === 'medecin' ? currentUser.id : '',
     });
   };
 
@@ -304,6 +368,7 @@ const RendezVousPage = () => {
 
   const getStatusColor = (statut: string) => {
     const colors: Record<string, string> = {
+      en_attente: 'bg-orange-100 text-orange-800',
       planifie: 'bg-yellow-100 text-yellow-800',
       confirme: 'bg-blue-100 text-blue-800',
       termine: 'bg-green-100 text-green-800',
@@ -311,6 +376,18 @@ const RendezVousPage = () => {
       absent: 'bg-gray-100 text-gray-800',
     };
     return colors[statut] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusLabel = (statut: string) => {
+    const labels: Record<string, string> = {
+      en_attente: 'En attente',
+      planifie: 'Planifié',
+      confirme: 'Confirmé',
+      termine: 'Terminé',
+      annule: 'Annulé',
+      absent: 'Absent',
+    };
+    return labels[statut] || statut;
   };
 
   return (
@@ -372,7 +449,7 @@ const RendezVousPage = () => {
                         rdv.statut
                       )}`}
                     >
-                      {rdv.statut}
+                      {getStatusLabel(rdv.statut)}
                     </span>
                   </td>
                   <td
@@ -380,24 +457,54 @@ const RendezVousPage = () => {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(rdv)}
-                        className="text-blue-600 hover:text-blue-900 transition-colors p-1 rounded hover:bg-blue-50"
-                        title="Modifier"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rdv)}
-                        className="text-red-600 hover:text-red-900 transition-colors p-1 rounded hover:bg-red-50"
-                        title="Supprimer"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {/* Pour les rendez-vous "en_attente" : afficher les icônes de confirmation/rejet (admin seulement) */}
+                      {rdv.statut === 'en_attente' && currentUser?.userRole === 'admin' && (
+                        <>
+                          <button
+                            onClick={() => confirmRendezVousMutation.mutate(rdv.id)}
+                            disabled={confirmRendezVousMutation.isPending}
+                            className="text-green-600 hover:text-green-900 transition-colors p-1 rounded hover:bg-green-50 disabled:opacity-50"
+                            title="Confirmer"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => rejectRendezVousMutation.mutate(rdv.id)}
+                            disabled={rejectRendezVousMutation.isPending}
+                            className="text-red-600 hover:text-red-900 transition-colors p-1 rounded hover:bg-red-50 disabled:opacity-50"
+                            title="Rejeter"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                      {/* Pour les rendez-vous "planifie" et "confirme" (créés par l'admin) : afficher edit et delete */}
+                      {(rdv.statut === 'planifie' || rdv.statut === 'confirme') && currentUser?.userRole === 'admin' && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(rdv)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors p-1 rounded hover:bg-blue-50"
+                            title="Modifier"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rdv)}
+                            className="text-red-600 hover:text-red-900 transition-colors p-1 rounded hover:bg-red-50"
+                            title="Supprimer"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -445,74 +552,88 @@ const RendezVousPage = () => {
                       type="hidden"
                       {...register('patientId')}
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsPatientDropdownOpen(!isPatientDropdownOpen);
-                        setIsUserDropdownOpen(false);
-                      }}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
-                        errors.patientId ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <span className={selectedPatient ? 'text-gray-900' : 'text-gray-500'}>
-                        {selectedPatient
-                          ? `${selectedPatient.prenom} ${selectedPatient.nom}`
-                          : 'Sélectionner un patient'}
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          isPatientDropdownOpen ? 'transform rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {isPatientDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        <div className="p-2 border-b border-gray-200">
-                          <input
-                            type="text"
-                            placeholder="Rechercher un patient..."
-                            value={patientSearch}
-                            onChange={(e) => setPatientSearch(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div className="py-1">
-                          {filteredPatients && filteredPatients.length > 0 ? (
-                            filteredPatients.map((patient) => (
-                              <button
-                                key={patient.id}
-                                type="button"
-                                onClick={() => {
-                                  setValue('patientId', patient.id);
-                                  setIsPatientDropdownOpen(false);
-                                  setPatientSearch('');
-                                }}
-                                className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
-                                  selectedPatientId === patient.id
-                                    ? 'bg-primary-50 text-primary-600'
-                                    : 'text-gray-900'
-                                }`}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    {patient.prenom} {patient.nom}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{patient.telephone}</span>
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="px-4 py-2 text-sm text-gray-500">Aucun patient trouvé</div>
-                          )}
+                    {currentPatient ? (
+                      // Si c'est un patient connecté, afficher un champ désactivé
+                      <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {currentPatient.prenom} {currentPatient.nom}
+                          </span>
                         </div>
                       </div>
+                    ) : (
+                      // Si c'est un admin/médecin, afficher le dropdown
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsPatientDropdownOpen(!isPatientDropdownOpen);
+                            setIsUserDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
+                            errors.patientId ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        >
+                          <span className={selectedPatient ? 'text-gray-900' : 'text-gray-500'}>
+                            {selectedPatient
+                              ? `${selectedPatient.prenom} ${selectedPatient.nom}`
+                              : 'Sélectionner un patient'}
+                          </span>
+                          <svg
+                            className={`w-5 h-5 text-gray-400 transition-transform ${
+                              isPatientDropdownOpen ? 'transform rotate-180' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                            {isPatientDropdownOpen && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div className="p-2 border-b border-gray-200">
+                              <input
+                                type="text"
+                                placeholder="Rechercher un patient..."
+                                value={patientSearch}
+                                onChange={(e) => setPatientSearch(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="py-1">
+                              {filteredPatients && filteredPatients.length > 0 ? (
+                                filteredPatients.map((patient) => (
+                                  <button
+                                    key={patient.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setValue('patientId', patient.id);
+                                      setIsPatientDropdownOpen(false);
+                                      setPatientSearch('');
+                                    }}
+                                    className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
+                                      selectedPatientId === patient.id
+                                        ? 'bg-primary-50 text-primary-600'
+                                        : 'text-gray-900'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {patient.prenom} {patient.nom}
+                                      </span>
+                                      <span className="text-xs text-gray-500">{patient.telephone}</span>
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-4 py-2 text-sm text-gray-500">Aucun patient trouvé</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   {errors.patientId && (
@@ -521,89 +642,194 @@ const RendezVousPage = () => {
                 </div>
 
                 {/* Médecin */}
-                <div className="relative" ref={userDropdownRef}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Médecin <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
+                {currentUser?.userRole === 'admin' ? (
+                  <div className="relative" ref={userDropdownRef}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Médecin <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="hidden"
+                        {...register('userId')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(!isUserDropdownOpen);
+                          setIsPatientDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
+                          errors.userId ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      >
+                        <span className={selectedUser ? 'text-gray-900' : 'text-gray-500'}>
+                          {selectedUser
+                            ? `Dr. ${selectedUser.prenom} ${selectedUser.nom} - ${selectedUser.specialite}`
+                            : 'Sélectionner un médecin'}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${
+                            isUserDropdownOpen ? 'transform rotate-180' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {isUserDropdownOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-200">
+                            <input
+                              type="text"
+                              placeholder="Rechercher un médecin..."
+                              value={userSearch}
+                              onChange={(e) => setUserSearch(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="py-1">
+                            {filteredUsers && filteredUsers.length > 0 ? (
+                              filteredUsers.map((user) => (
+                                <button
+                                  key={user.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setValue('userId', user.id);
+                                    setIsUserDropdownOpen(false);
+                                    setUserSearch('');
+                                  }}
+                                  className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
+                                    selectedUserId === user.id
+                                      ? 'bg-primary-50 text-primary-600'
+                                      : 'text-gray-900'
+                                  }`}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      Dr. {user.prenom} {user.nom}
+                                    </span>
+                                    <span className="text-xs text-gray-500">{user.specialite}</span>
+                                  </div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-2 text-sm text-gray-500">Aucun médecin trouvé</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {errors.userId && (
+                      <p className="mt-1 text-sm text-red-500">{errors.userId.message}</p>
+                    )}
+                  </div>
+                ) : currentUser?.userRole === 'medecin' ? (
+                  // Si c'est un médecin connecté, afficher un champ désactivé
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Médecin
+                    </label>
                     <input
                       type="hidden"
                       {...register('userId')}
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserDropdownOpen(!isUserDropdownOpen);
-                        setIsPatientDropdownOpen(false);
-                      }}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
-                        errors.userId ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <span className={selectedUser ? 'text-gray-900' : 'text-gray-500'}>
-                        {selectedUser
-                          ? `Dr. ${selectedUser.prenom} ${selectedUser.nom} - ${selectedUser.specialite}`
-                          : 'Sélectionner un médecin'}
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          isUserDropdownOpen ? 'transform rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {isUserDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        <div className="p-2 border-b border-gray-200">
-                          <input
-                            type="text"
-                            placeholder="Rechercher un médecin..."
-                            value={userSearch}
-                            onChange={(e) => setUserSearch(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div className="py-1">
-                          {filteredUsers && filteredUsers.length > 0 ? (
-                            filteredUsers.map((user) => (
-                              <button
-                                key={user.id}
-                                type="button"
-                                onClick={() => {
-                                  setValue('userId', user.id);
-                                  setIsUserDropdownOpen(false);
-                                  setUserSearch('');
-                                }}
-                                className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
-                                  selectedUserId === user.id
-                                    ? 'bg-primary-50 text-primary-600'
-                                    : 'text-gray-900'
-                                }`}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    Dr. {user.prenom} {user.nom}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{user.specialite}</span>
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="px-4 py-2 text-sm text-gray-500">Aucun médecin trouvé</div>
-                          )}
-                        </div>
+                    <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          Dr. {currentUser.prenom} {currentUser.nom} - {currentUser.specialite}
+                        </span>
                       </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Si c'est un patient, afficher le dropdown pour sélectionner un médecin
+                  <div className="relative" ref={userDropdownRef}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Médecin <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="hidden"
+                        {...register('userId')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(!isUserDropdownOpen);
+                          setIsPatientDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
+                          errors.userId ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      >
+                        <span className={selectedUser ? 'text-gray-900' : 'text-gray-500'}>
+                          {selectedUser
+                            ? `Dr. ${selectedUser.prenom} ${selectedUser.nom} - ${selectedUser.specialite}`
+                            : 'Sélectionner un médecin'}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${
+                            isUserDropdownOpen ? 'transform rotate-180' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {isUserDropdownOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-200">
+                            <input
+                              type="text"
+                              placeholder="Rechercher un médecin..."
+                              value={userSearch}
+                              onChange={(e) => setUserSearch(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="py-1">
+                            {filteredUsers && filteredUsers.length > 0 ? (
+                              filteredUsers.map((user) => (
+                                <button
+                                  key={user.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setValue('userId', user.id);
+                                    setIsUserDropdownOpen(false);
+                                    setUserSearch('');
+                                  }}
+                                  className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
+                                    selectedUserId === user.id
+                                      ? 'bg-primary-50 text-primary-600'
+                                      : 'text-gray-900'
+                                  }`}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      Dr. {user.prenom} {user.nom}
+                                    </span>
+                                    <span className="text-xs text-gray-500">{user.specialite}</span>
+                                  </div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-2 text-sm text-gray-500">Aucun médecin trouvé</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {errors.userId && (
+                      <p className="mt-1 text-sm text-red-500">{errors.userId.message}</p>
                     )}
                   </div>
-                  {errors.userId && (
-                    <p className="mt-1 text-sm text-red-500">{errors.userId.message}</p>
-                  )}
-                </div>
+                )}
 
                 {/* Date et Heure */}
                 <div>
@@ -619,27 +845,6 @@ const RendezVousPage = () => {
                   />
                   {errors.dateHeure && (
                     <p className="mt-1 text-sm text-red-500">{errors.dateHeure.message}</p>
-                  )}
-                </div>
-
-                {/* Durée */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Durée (minutes) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    {...register('duree', { valueAsNumber: true })}
-                    type="number"
-                    min="15"
-                    max="240"
-                    step="15"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                      errors.duree ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="30"
-                  />
-                  {errors.duree && (
-                    <p className="mt-1 text-sm text-red-500">{errors.duree.message}</p>
                   )}
                 </div>
               </div>
@@ -1076,15 +1281,11 @@ const RendezVousPage = () => {
             className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
+            
+            <h2 className="text-xl font-semibold text-gray-900 text-start mb-2">
               Supprimer le rendez-vous
             </h2>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-gray-600 text-start mb-6">
               Êtes-vous sûr de vouloir supprimer ce rendez-vous du{' '}
               <strong>{format(new Date(selectedRendezVous.dateHeure), "dd/MM/yyyy 'à' HH:mm")}</strong> ?
               Cette action est irréversible.

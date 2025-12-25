@@ -52,10 +52,13 @@
 │ DISPONIBILITE   │
 │─────────────────│
 │ - id            │
-│ - jourSemaine   │
+│ - jourSemaine   │ (legacy)
 │ - heureDebut    │
 │ - heureFin      │
+│ - dateSpecifique│ (requis)
+│ - dureeConsultation │
 │ - estDisponible │
+│ - estException  │ (toujours true)
 └─────────────────┘
 
 

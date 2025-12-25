@@ -29,7 +29,7 @@
 │ +créerCompte()                                                  │
 │ +seConnecter()                                                  │
 │ +prendreRendezVous(userId, dateHeure, motif)                  │
-│ +consulterDisponibilites(userId)                              │
+│ +consulterDisponibilitesTousMedecins()                       │
 │ +modifierRendezVous(rendezVousId, nouvelleDate)                │
 │ +annulerRendezVous(rendezVousId, raison)                       │
 │ +consulterDossierMedical()                                      │
@@ -54,6 +54,7 @@
 │ +dateHeure:      │                  │ +userId: UUID    │
 │    DateTime      │                  │ +dateConsultation: DateTime
 │ +duree: Int      │                  │ +motifConsultation: String?
+│    (dérivé de Disponibilite)        │
 │ +statut:         │                  │ +examenClinique: String?
 │    StatutRendezVous │              │ +diagnostic: String?
 │ +motif: String?  │                  │ +observations: String?
@@ -129,17 +130,18 @@
 │ +heureFin:       │                            │
 │    String        │                            │ 1
 │ +dureeConsultation: Int                      │
-│ +dateSpecifique: DateTime?                   │ *
-│ +estException: Boolean                       │
+│ +dateSpecifique: DateTime (requis)          │ *
+│ +estException: Boolean (toujours true)      │
 │ +estDisponible: Boolean                      │
 │ +notes: String?                              │
 │ +createdAt: DateTime                         │
 │ +updatedAt: DateTime                         │
 ├──────────────────┤                           │
-│ +définirDisponibilité()                      │
+│ +définirDisponibilité(date, heureDebut, heureFin, duree, estDisponible)
 │ +modifierDisponibilité()                     │
 │ +supprimerDisponibilité()                    │
 │ +vérifierDisponibilité(dateHeure)            │
+│ +récupérerDuréeConsultation(dateHeure)       │
 └──────────────────┘                           │
                                                │
                                                │ *
@@ -232,5 +234,13 @@
 1. **Rôle Admin** : L'utilisateur avec `userRole = 'admin'` a accès à toutes les fonctionnalités administratives
 2. **Relation RENDEZ_VOUS-CONSULTATION** : Un rendez-vous peut exister sans consultation (si annulé), mais une consultation nécessite un rendez-vous
 3. **Relation CONSULTATION-FACTURE** : Une consultation génère une facture, mais pas systématiquement
-4. **DISPONIBILITE** : Gère les horaires récurrents (jourSemaine) et les exceptions (dateSpecifique)
+4. **DISPONIBILITE** : 
+   - Les disponibilités sont maintenant créées uniquement par date et heure spécifique (`dateSpecifique` est requis)
+   - `estException` est toujours `true` pour les nouvelles disponibilités
+   - `jourSemaine` est conservé pour compatibilité mais n'est plus utilisé activement
+   - La durée des rendez-vous est automatiquement dérivée de la disponibilité du médecin
+5. **RENDEZ_VOUS** : 
+   - La durée est automatiquement calculée à partir de la disponibilité du médecin lors de la création
+   - Un rendez-vous ne peut être créé que si le médecin a des disponibilités définies
+6. **Filtrage par rôle** : Les consultations et rendez-vous sont filtrés dans le backend selon le rôle de l'utilisateur connecté
 

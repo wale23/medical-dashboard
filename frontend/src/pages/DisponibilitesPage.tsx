@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,64 +9,20 @@ import { useAuthStore } from '../store/authStore';
 import { showSuccessAlert, showErrorAlert, getErrorMessage } from '../utils/alert';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-const joursSemaine = [
-  { value: 0, label: 'Dimanche' },
-  { value: 1, label: 'Lundi' },
-  { value: 2, label: 'Mardi' },
-  { value: 3, label: 'Mercredi' },
-  { value: 4, label: 'Jeudi' },
-  { value: 5, label: 'Vendredi' },
-  { value: 6, label: 'Samedi' },
-];
-
-const createDisponibiliteSchema = z
-  .object({
-    userId: z.string().min(1, 'Le médecin est requis'),
-    jourSemaine: z.union([z.number().min(0).max(6), z.nan(), z.undefined()]).transform((val) => {
-      if (val === undefined || isNaN(Number(val))) return undefined;
-      return Number(val);
-    }).optional(),
-    heureDebut: z.string().min(1, 'L\'heure de début est requise'),
-    heureFin: z.string().min(1, 'L\'heure de fin est requise'),
-    dureeConsultation: z.number().min(15, 'La durée minimum est de 15 minutes').max(240, 'La durée maximum est de 240 minutes').default(30),
-    dateSpecifique: z.string().optional(),
-    estException: z.union([z.boolean(), z.string()]).transform((val) => {
-      if (typeof val === 'string') {
-        return val === 'true' || val === 'on';
-      }
-      return Boolean(val);
-    }),
-    estDisponible: z.union([z.boolean(), z.string()]).transform((val) => {
-      if (typeof val === 'string') {
-        return val === 'true' || val === 'on';
-      }
-      return Boolean(val);
-    }).default(true),
-    notes: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    // Si c'est une exception, dateSpecifique est requis et jourSemaine n'est pas requis
-    if (data.estException) {
-      if (!data.dateSpecifique || data.dateSpecifique.trim() === '') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'La date spécifique est requise pour une exception',
-          path: ['dateSpecifique'],
-        });
-      }
-      // Pour une exception, on ignore jourSemaine même s'il est défini
-    } else {
-      // Si ce n'est pas une exception, jourSemaine est requis et dateSpecifique n'est pas requis
-      if (data.jourSemaine === undefined || data.jourSemaine === null || isNaN(Number(data.jourSemaine))) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Le jour de la semaine est requis pour une disponibilité régulière',
-          path: ['jourSemaine'],
-        });
-      }
-      // Pour une disponibilité régulière, on ignore dateSpecifique même s'il est défini
+const createDisponibiliteSchema = z.object({
+  userId: z.string().min(1, 'Le médecin est requis'),
+  dateSpecifique: z.string().min(1, 'La date est requise'),
+  heureDebut: z.string().min(1, 'L\'heure de début est requise'),
+  heureFin: z.string().min(1, 'L\'heure de fin est requise'),
+  dureeConsultation: z.number().min(15, 'La durée minimum est de 15 minutes').max(240, 'La durée maximum est de 240 minutes').default(30),
+  estDisponible: z.union([z.boolean(), z.string()]).transform((val) => {
+    if (typeof val === 'string') {
+      return val === 'true' || val === 'on';
     }
-  });
+    return Boolean(val);
+  }).default(true),
+  notes: z.string().optional(),
+});
 
 const updateDisponibiliteSchema = createDisponibiliteSchema;
 
@@ -79,26 +35,7 @@ const DisponibilitesPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedDisponibilite, setSelectedDisponibilite] = useState<Disponibilite | null>(null);
-  const [isJourSemaineDropdownOpen, setIsJourSemaineDropdownOpen] = useState(false);
-  const jourSemaineDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
-
-  // Fermer les dropdowns en cliquant en dehors
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (jourSemaineDropdownRef.current && !jourSemaineDropdownRef.current.contains(event.target as Node)) {
-        setIsJourSemaineDropdownOpen(false);
-      }
-    };
-
-    if (isJourSemaineDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isJourSemaineDropdownOpen]);
 
   const { data: disponibilites, isLoading } = useQuery({
     queryKey: ['disponibilites', currentUser?.id],
@@ -114,17 +51,13 @@ const DisponibilitesPage = () => {
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
-    setValue,
   } = useForm<CreateDisponibiliteFormData>({
     resolver: zodResolver(createDisponibiliteSchema),
     defaultValues: {
       userId: currentUser?.id || '',
       dureeConsultation: 30,
-      estException: false,
       estDisponible: true,
-      jourSemaine: undefined,
-      dateSpecifique: undefined,
+      dateSpecifique: new Date().toISOString().split('T')[0], // Date du jour par défaut
     },
     mode: 'onChange',
   });
@@ -134,51 +67,39 @@ const DisponibilitesPage = () => {
     handleSubmit: handleSubmitEdit,
     formState: { errors: errorsEdit },
     reset: resetEdit,
-    watch: watchEdit,
-    setValue: setValueEdit,
   } = useForm<UpdateDisponibiliteFormData>({
     resolver: zodResolver(updateDisponibiliteSchema),
+    defaultValues: {
+      dureeConsultation: 30,
+      estDisponible: true,
+      dateSpecifique: new Date().toISOString().split('T')[0],
+    },
   });
-
-  const selectedJourSemaine = watch('jourSemaine');
-  const estException = watch('estException');
-  const selectedEditJourSemaine = watchEdit('jourSemaine');
-  const estEditException = watchEdit('estException');
 
   const createDisponibiliteMutation = useMutation({
     mutationFn: async (data: CreateDisponibiliteFormData) => {
-      console.log('Mutation called with data:', data);
-      // Formatage des données avant l'envoi
+      // S'assurer que estDisponible est bien un boolean
+      const estDisponible = typeof data.estDisponible === 'boolean' 
+        ? data.estDisponible 
+        : data.estDisponible === 'true' || data.estDisponible === 'on';
+
       const payload: any = {
         userId: data.userId,
+        dateSpecifique: data.dateSpecifique,
         heureDebut: data.heureDebut,
         heureFin: data.heureFin,
         dureeConsultation: data.dureeConsultation,
-        estException: data.estException,
-        estDisponible: data.estDisponible,
+        estException: true, // Toujours true car on utilise dateSpecifique
+        estDisponible: estDisponible,
         notes: data.notes,
+        jourSemaine: 0, // Valeur par défaut (non utilisée)
       };
 
-      if (data.estException) {
-        // Pour une exception : dateSpecifique requis, jourSemaine = 0 (par défaut)
-        payload.dateSpecifique = data.dateSpecifique;
-        payload.jourSemaine = 0; // Valeur par défaut pour les exceptions
-      } else {
-        // Pour une disponibilité régulière : jourSemaine requis, pas de dateSpecifique
-        payload.jourSemaine = data.jourSemaine;
-        // Ne pas inclure dateSpecifique dans le payload si ce n'est pas une exception
-        if (payload.dateSpecifique !== undefined) {
-          delete payload.dateSpecifique;
-        }
-      }
-
-      console.log('Sending payload to API:', payload);
+      console.log('Creating disponibilite with payload:', payload);
       const response = await api.post('/disponibilites', payload);
-      console.log('API response:', response.data);
       return response.data;
     },
     onSuccess: (data) => {
-      console.log('Success creating disponibilite:', data);
       queryClient.invalidateQueries({ queryKey: ['disponibilites'] });
       queryClient.invalidateQueries({ queryKey: ['disponibilites', currentUser?.id] });
       setIsModalOpen(false);
@@ -186,8 +107,6 @@ const DisponibilitesPage = () => {
       showSuccessAlert(data?.message || 'Disponibilité créée avec succès');
     },
     onError: (error: any) => {
-      console.error('Error creating disponibilite:', error);
-      console.error('Error details:', error.response?.data || error.message);
       const errorMessage = getErrorMessage(error);
       showErrorAlert(errorMessage);
     },
@@ -195,11 +114,12 @@ const DisponibilitesPage = () => {
 
   const updateDisponibiliteMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateDisponibiliteFormData }) => {
-      const response = await api.put(`/disponibilites/${id}`, {
+      const payload: any = {
         ...data,
-        jourSemaine: data.estException ? undefined : data.jourSemaine,
-        dateSpecifique: data.estException ? data.dateSpecifique : undefined,
-      });
+        estException: true,
+        jourSemaine: 0, // Valeur par défaut (non utilisée)
+      };
+      const response = await api.put(`/disponibilites/${id}`, payload);
       return response.data;
     },
     onSuccess: (data) => {
@@ -233,11 +153,6 @@ const DisponibilitesPage = () => {
   });
 
   const onSubmit = (data: CreateDisponibiliteFormData) => {
-    console.log('✅ Form submitted with data:', data);
-    console.log('✅ Data estException:', data.estException);
-    console.log('✅ Data jourSemaine:', data.jourSemaine);
-    console.log('✅ Data dateSpecifique:', data.dateSpecifique);
-    // Les données sont déjà validées par Zod, on peut les envoyer directement
     createDisponibiliteMutation.mutate(data);
   };
 
@@ -251,10 +166,8 @@ const DisponibilitesPage = () => {
     reset({
       userId: currentUser?.id || '',
       dureeConsultation: 30,
-      estException: false,
       estDisponible: true,
-      jourSemaine: undefined,
-      dateSpecifique: undefined,
+      dateSpecifique: new Date().toISOString().split('T')[0], // Date du jour par défaut
       heureDebut: '',
       heureFin: '',
       notes: '',
@@ -271,12 +184,10 @@ const DisponibilitesPage = () => {
     setSelectedDisponibilite(disp);
     resetEdit({
       userId: disp.userId,
-      jourSemaine: disp.estException ? undefined : disp.jourSemaine,
       heureDebut: disp.heureDebut,
       heureFin: disp.heureFin,
       dureeConsultation: disp.dureeConsultation,
-      dateSpecifique: disp.dateSpecifique ? new Date(disp.dateSpecifique).toISOString().split('T')[0] : undefined,
-      estException: disp.estException,
+      dateSpecifique: disp.dateSpecifique ? new Date(disp.dateSpecifique).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       estDisponible: disp.estDisponible,
       notes: disp.notes || '',
     });
@@ -292,10 +203,6 @@ const DisponibilitesPage = () => {
     if (selectedDisponibilite) {
       deleteDisponibiliteMutation.mutate(selectedDisponibilite.id);
     }
-  };
-
-  const getJourLabel = (jourSemaine: number) => {
-    return joursSemaine.find((j) => j.value === jourSemaine)?.label || 'Inconnu';
   };
 
   if (isLoading) {
@@ -317,10 +224,7 @@ const DisponibilitesPage = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Jour / Date
+                  Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Heures
@@ -341,16 +245,14 @@ const DisponibilitesPage = () => {
                 disponibilites.map((disp) => (
                   <tr key={disp.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4">
-                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                        disp.estException ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {disp.estException ? 'Exception' : 'Régulière'}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      {disp.estException && disp.dateSpecifique
-                        ? new Date(disp.dateSpecifique).toLocaleDateString('fr-FR')
-                        : getJourLabel(disp.jourSemaine)}
+                      {disp.dateSpecifique
+                        ? new Date(disp.dateSpecifique).toLocaleDateString('fr-FR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })
+                        : '-'}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       {disp.heureDebut} - {disp.heureFin}
@@ -365,7 +267,7 @@ const DisponibilitesPage = () => {
                         {disp.estDisponible ? 'Disponible' : 'Indisponible'}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleEdit(disp)}
@@ -391,7 +293,7 @@ const DisponibilitesPage = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Aucune disponibilité définie
                   </td>
                 </tr>
@@ -424,161 +326,26 @@ const DisponibilitesPage = () => {
               </button>
             </div>
 
-            <form 
-              onSubmit={(e) => {
-                console.log('Form submit event triggered');
-                e.preventDefault();
-                handleSubmit(
-                  (data) => {
-                    console.log('Form validation passed, submitting:', data);
-                    onSubmit(data);
-                  },
-                  (errors) => {
-                    console.error('Form validation failed:', errors);
-                    console.error('Form errors details:', errors);
-                  }
-                )(e);
-              }} 
-              className="p-6 space-y-6"
-            >
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
               <input type="hidden" {...register('userId')} />
 
-              {/* Type de disponibilité */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Type de disponibilité
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-3">
-                  <label className="flex items-start cursor-pointer group">
-                    <input
-                      type="radio"
-                      {...register('estException')}
-                      checked={!estException}
-                      onChange={() => {
-                        setValue('estException', false);
-                        setValue('dateSpecifique', undefined);
-                        setValue('jourSemaine', undefined);
-                      }}
-                      className="mt-1 mr-3"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 block">Disponibilité régulière</span>
-                      <span className="text-sm text-gray-600">
-                        Pour définir vos horaires récurrents chaque semaine (ex: Tous les lundis de 9h à 12h)
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="estException"
-                      checked={estException}
-                      onChange={() => {
-                        setValue('estException', true, { shouldValidate: true });
-                        setValue('jourSemaine', undefined); // Réinitialiser le jour car il n'est plus requis
-                        setValue('dateSpecifique', ''); // Réinitialiser la date
-                        // Clear les erreurs de jourSemaine car il n'est plus requis
-                      }}
-                      className="mt-1 mr-3"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 block">Exception (date spécifique)</span>
-                      <span className="text-sm text-gray-600">
-                        Pour des disponibilités ponctuelles ou des jours fériés (ex: Disponible le 25 décembre de 10h à 14h)
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <input
+                  {...register('dateSpecifique')}
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]} // Ne pas permettre les dates passées
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errors.dateSpecifique ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
+                />
+                {errors.dateSpecifique && (
+                  <p className="mt-1 text-sm text-red-600 font-medium">{errors.dateSpecifique.message}</p>
+                )}
               </div>
-
-              {/* Jour de la semaine (si régulière) */}
-              {!estException && (
-                <div className="relative" ref={jourSemaineDropdownRef}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jour de la semaine <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type="hidden" 
-                      value={selectedJourSemaine !== undefined && selectedJourSemaine !== null ? selectedJourSemaine : ''}
-                      {...register('jourSemaine', { 
-                        valueAsNumber: true,
-                        setValueAs: (v) => {
-                          if (v === '' || v === undefined || v === null) return undefined;
-                          const num = Number(v);
-                          return isNaN(num) ? undefined : num;
-                        }
-                      })} 
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsJourSemaineDropdownOpen(!isJourSemaineDropdownOpen)}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
-                        errors.jourSemaine ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                      }`}
-                    >
-                      <span className={selectedJourSemaine !== undefined ? 'text-gray-900' : 'text-gray-500'}>
-                        {selectedJourSemaine !== undefined
-                          ? joursSemaine.find((j) => j.value === selectedJourSemaine)?.label
-                          : 'Sélectionner un jour'}
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          isJourSemaineDropdownOpen ? 'transform rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {isJourSemaineDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                        {joursSemaine.map((jour) => (
-                          <button
-                            key={jour.value}
-                            type="button"
-                            onClick={() => {
-                              setValue('jourSemaine', jour.value);
-                              setIsJourSemaineDropdownOpen(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
-                              selectedJourSemaine === jour.value
-                                ? 'bg-primary-50 text-primary-600'
-                                : 'text-gray-900'
-                            }`}
-                          >
-                            {jour.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {errors.jourSemaine && (
-                    <p className="mt-1 text-sm text-red-600 font-medium">{errors.jourSemaine.message}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Date spécifique (si exception) */}
-              {estException && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date spécifique <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    {...register('dateSpecifique')}
-                    type="date"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                      errors.dateSpecifique ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.dateSpecifique && (
-                    <p className="mt-1 text-sm text-red-600 font-medium">{errors.dateSpecifique.message}</p>
-                  )}
-                </div>
-              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Heure de début */}
@@ -717,128 +484,23 @@ const DisponibilitesPage = () => {
             <form onSubmit={handleSubmitEdit(onSubmitEdit)} className="p-6 space-y-6">
               <input type="hidden" {...registerEdit('userId')} />
 
-              {/* Type de disponibilité */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Type de disponibilité
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-3">
-                  <label className="flex items-start cursor-pointer group">
-                    <input
-                      type="radio"
-                      {...registerEdit('estException')}
-                      checked={!estEditException}
-                      onChange={() => {
-                        setValueEdit('estException', false);
-                        setValueEdit('dateSpecifique', undefined);
-                      }}
-                      className="mt-1 mr-3"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 block">Disponibilité régulière</span>
-                      <span className="text-sm text-gray-600">
-                        Pour définir vos horaires récurrents chaque semaine (ex: Tous les lundis de 9h à 12h)
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-start cursor-pointer group">
-                    <input
-                      type="radio"
-                      {...registerEdit('estException')}
-                      checked={estEditException}
-                      onChange={() => {
-                        setValueEdit('estException', true);
-                        setValueEdit('jourSemaine', undefined);
-                      }}
-                      className="mt-1 mr-3"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 block">Exception (date spécifique)</span>
-                      <span className="text-sm text-gray-600">
-                        Pour des disponibilités ponctuelles ou des jours fériés (ex: Disponible le 25 décembre de 10h à 14h)
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <input
+                  {...registerEdit('dateSpecifique')}
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]} // Ne pas permettre les dates passées
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    errorsEdit.dateSpecifique ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
+                />
+                {errorsEdit.dateSpecifique && (
+                  <p className="mt-1 text-sm text-red-600 font-medium">{errorsEdit.dateSpecifique.message}</p>
+                )}
               </div>
-
-              {/* Jour de la semaine (si régulière) */}
-              {!estEditException && (
-                <div className="relative" ref={jourSemaineDropdownRef}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jour de la semaine <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input type="hidden" {...registerEdit('jourSemaine', { valueAsNumber: true })} />
-                    <button
-                      type="button"
-                      onClick={() => setIsJourSemaineDropdownOpen(!isJourSemaineDropdownOpen)}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between ${
-                        errorsEdit.jourSemaine ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <span className={selectedEditJourSemaine !== undefined ? 'text-gray-900' : 'text-gray-500'}>
-                        {selectedEditJourSemaine !== undefined
-                          ? joursSemaine.find((j) => j.value === selectedEditJourSemaine)?.label
-                          : 'Sélectionner un jour'}
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          isJourSemaineDropdownOpen ? 'transform rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {isJourSemaineDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                        {joursSemaine.map((jour) => (
-                          <button
-                            key={jour.value}
-                            type="button"
-                            onClick={() => {
-                              setValueEdit('jourSemaine', jour.value);
-                              setIsJourSemaineDropdownOpen(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left hover:bg-primary-50 transition-colors ${
-                              selectedEditJourSemaine === jour.value
-                                ? 'bg-primary-50 text-primary-600'
-                                : 'text-gray-900'
-                            }`}
-                          >
-                            {jour.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {errorsEdit.jourSemaine && (
-                    <p className="mt-1 text-sm text-red-500">{errorsEdit.jourSemaine.message}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Date spécifique (si exception) */}
-              {estEditException && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date spécifique <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    {...registerEdit('dateSpecifique')}
-                    type="date"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                      errorsEdit.dateSpecifique ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errorsEdit.dateSpecifique && (
-                    <p className="mt-1 text-sm text-red-500">{errorsEdit.dateSpecifique.message}</p>
-                  )}
-                </div>
-              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Heure de début */}
@@ -961,15 +623,10 @@ const DisponibilitesPage = () => {
             className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
+            <h2 className="text-xl font-semibold text-gray-900 text-start mb-2">
               Supprimer la disponibilité
             </h2>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-gray-600 text-start mb-6">
               Êtes-vous sûr de vouloir supprimer cette disponibilité ? Cette action est irréversible.
             </p>
             <div className="flex justify-end gap-3">
@@ -1000,4 +657,3 @@ const DisponibilitesPage = () => {
 };
 
 export default DisponibilitesPage;
-

@@ -99,6 +99,7 @@ model RendezVous {
 }
 
 enum StatutRendezVous {
+  en_attente
   planifie
   confirme
   annule

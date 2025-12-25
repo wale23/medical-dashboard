@@ -75,13 +75,84 @@ export const updateDossierMedical = async (
     const { id } = req.params;
     const updateData = req.body;
 
+    // Vérifier que le dossier médical existe
+    const existingDossier = await prisma.dossierMedical.findUnique({
+      where: { id },
+    });
+
+    if (!existingDossier) {
+      throw new AppError('Dossier médical non trouvé', 404);
+    }
+
     const dossier = await prisma.dossierMedical.update({
       where: { id },
       data: updateData,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            nom: true,
+            prenom: true,
+          },
+        },
+      },
     });
 
     res.json({
       status: 'success',
+      message: 'Dossier médical mis à jour avec succès',
+      data: dossier,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Mettre à jour le dossier médical par patientId (plus pratique)
+export const updateDossierMedicalByPatient = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { patientId } = req.params;
+    const updateData = req.body;
+
+    // Vérifier que le patient existe
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw new AppError('Patient non trouvé', 404);
+    }
+
+    // Vérifier que le dossier médical existe
+    const existingDossier = await prisma.dossierMedical.findUnique({
+      where: { patientId },
+    });
+
+    if (!existingDossier) {
+      throw new AppError('Dossier médical non trouvé pour ce patient', 404);
+    }
+
+    const dossier = await prisma.dossierMedical.update({
+      where: { patientId },
+      data: updateData,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            nom: true,
+            prenom: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Dossier médical mis à jour avec succès',
       data: dossier,
     });
   } catch (error) {

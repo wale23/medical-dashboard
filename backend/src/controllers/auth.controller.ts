@@ -12,7 +12,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       throw new AppError('Email et mot de passe requis', 400);
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await (prisma as any).user.findUnique({
       where: { email },
     });
 
@@ -58,7 +58,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     }
 
     // Vérifier si l'email existe déjà
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await (prisma as any).user.findUnique({
       where: { email },
     });
 
@@ -69,7 +69,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     // Hash du mot de passe
     const hashedPassword = await bcrypt.hash(motDePasse, 10);
 
-    const user = await prisma.user.create({
+    const user = await (prisma as any).user.create({
       data: {
         nom,
         prenom,
@@ -114,8 +114,16 @@ export const loginPatient = async (req: Request, res: Response, next: NextFuncti
       throw new AppError('Téléphone et mot de passe requis', 400);
     }
 
-    const patient = await prisma.patient.findUnique({
+    const patient = await (prisma as any).patient.findUnique({
       where: { telephone },
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        telephone: true,
+        email: true,
+        motDePasse: true,
+      },
     });
 
     if (!patient) {

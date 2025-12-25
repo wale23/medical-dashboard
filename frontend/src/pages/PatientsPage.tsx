@@ -5,10 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '../services/api';
-import { Patient, Sexe } from '../types';
+import { Patient, Sexe, RendezVous } from '../types';
 import { format } from 'date-fns';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showSuccessAlert, showErrorAlert, getErrorMessage } from '../utils/alert';
+import { useAuthStore } from '../store/authStore';
 
 const createPatientSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis'),
@@ -16,7 +17,7 @@ const createPatientSchema = z.object({
   dateNaissance: z.string().min(1, 'La date de naissance est requise'),
   sexe: z.nativeEnum(Sexe),
   telephone: z.string().min(1, 'Le téléphone est requis'),
-  email: z.union([z.string().email('Email invalide'), z.literal('')]).optional(),
+  email: z.string().email('Email invalide').min(1, 'L\'email est requis'),
   adresse: z.string().optional(),
   numeroSS: z.string().min(1, 'Le numéro de sécurité sociale est requis'),
   motDePasse: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères').optional(),
@@ -50,6 +51,7 @@ type UpdatePatientFormData = z.infer<typeof updatePatientSchema>;
 
 const PatientsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -82,13 +84,43 @@ const PatientsPage = () => {
     };
   }, [isSexeDropdownOpen, isEditSexeDropdownOpen]);
 
-  const { data, isLoading } = useQuery({
+  // Si c'est un médecin, récupérer uniquement les patients qui ont des rendez-vous avec lui
+  const { data: allPatients, isLoading: isLoadingPatients } = useQuery({
     queryKey: ['patients'],
     queryFn: async () => {
       const response = await api.get('/patients');
       return response.data.data as Patient[];
     },
+    enabled: user?.userRole === 'admin', // Seulement si admin
   });
+
+  // Récupérer les rendez-vous du médecin pour extraire ses patients
+  const { data: medecinRendezVous, isLoading: isLoadingRendezVous } = useQuery({
+    queryKey: ['rendez-vous', 'medecin', user?.id],
+    queryFn: async () => {
+      const response = await api.get('/rendez-vous');
+      const allRendezVous = response.data.data as (RendezVous & { patient: Patient })[];
+      // Filtrer les rendez-vous du médecin connecté
+      return allRendezVous.filter((rdv) => rdv.userId === user?.id);
+    },
+    enabled: user?.userRole === 'medecin' && !!user?.id, // Seulement si médecin
+  });
+
+  // Extraire les patients uniques des rendez-vous du médecin
+  const medecinPatients = medecinRendezVous
+    ? Array.from(
+        new Map(
+          medecinRendezVous
+            .map((rdv) => rdv.patient)
+            .filter((patient) => patient != null)
+            .map((patient) => [patient!.id, patient!])
+        ).values()
+      )
+    : [];
+
+  // Déterminer les données à afficher selon le rôle
+  const data = user?.userRole === 'admin' ? allPatients : medecinPatients;
+  const isLoading = user?.userRole === 'admin' ? isLoadingPatients : isLoadingRendezVous;
 
   const {
     register,
@@ -235,9 +267,11 @@ const PatientsPage = () => {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Patients</h1>
-        <button onClick={openModal} className="btn btn-primary">
-          Nouveau patient
-        </button>
+        {user?.userRole === 'admin' && (
+          <button onClick={openModal} className="btn btn-primary">
+            Nouveau patient
+          </button>
+        )}
       </div>
 
       <div className="card overflow-hidden">
@@ -285,27 +319,28 @@ const PatientsPage = () => {
                     className="whitespace-nowrap px-4 py-4 text-right text-sm font-medium"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(patient)}
-                        className="text-blue-600 hover:text-blue-900 transition-colors p-1 rounded hover:bg-blue-50"
-                        title="Modifier"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(patient)}
-                        className="text-red-600 hover:text-red-900 transition-colors p-1 rounded hover:bg-red-50"
-                        title="Supprimer"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                    {user?.userRole === 'admin' && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(patient)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors p-1 rounded hover:bg-blue-50"
+                          title="Modifier"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(patient)}
+                          className="text-red-600 hover:text-red-900 transition-colors p-1 rounded hover:bg-red-50"
+                          title="Supprimer"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -314,8 +349,8 @@ const PatientsPage = () => {
         </div>
       </div>
 
-      {/* Modal d'ajout de patient */}
-      {isModalOpen && (
+      {/* Modal d'ajout de patient - Seulement pour les admins */}
+      {isModalOpen && user?.userRole === 'admin' && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
           onClick={(e) => {
@@ -467,7 +502,9 @@ const PatientsPage = () => {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
                   <input
                     {...register('email')}
                     type="email"

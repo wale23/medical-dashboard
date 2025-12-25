@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const getAllPatients = async (
   req: Request,
@@ -67,6 +68,53 @@ export const getPatientById = async (
   }
 };
 
+export const getMyProfile = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new AppError('Authentification requise', 401);
+    }
+
+    // Vérifier que c'est un patient
+    if (currentUser.role !== 'patient') {
+      throw new AppError('Accès non autorisé', 403);
+    }
+
+    const patient = await prisma.patient.findUnique({
+      where: { id: currentUser.id },
+      include: {
+        dossierMedical: true,
+        rendezVous: {
+          orderBy: { dateHeure: 'desc' },
+        },
+        consultations: {
+          orderBy: { dateConsultation: 'desc' },
+          include: {
+            prescriptions: true,
+            facture: true,
+          },
+        },
+      },
+    });
+
+    if (!patient) {
+      throw new AppError('Patient non trouvé', 404);
+    }
+
+    res.json({
+      status: 'success',
+      data: patient,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createPatient = async (
   req: Request,
   res: Response,
@@ -88,8 +136,8 @@ export const createPatient = async (
       antecedents,
     } = req.body;
 
-    if (!nom || !prenom || !dateNaissance || !sexe || !telephone || !numeroSS) {
-      throw new AppError('Champs obligatoires manquants', 400);
+    if (!nom || !prenom || !dateNaissance || !sexe || !telephone || !numeroSS || !email) {
+      throw new AppError('Champs obligatoires manquants (nom, prénom, date de naissance, sexe, téléphone, numéro SS et email sont requis)', 400);
     }
 
     // Si un mot de passe est fourni, le hasher
@@ -105,6 +153,15 @@ export const createPatient = async (
 
     if (existingPatient) {
       throw new AppError('Un patient avec ce numéro de téléphone existe déjà', 409);
+    }
+
+    // Vérifier si l'email existe déjà
+    const existingEmail = await prisma.patient.findUnique({
+      where: { email },
+    });
+
+    if (existingEmail) {
+      throw new AppError('Un patient avec cet email existe déjà', 409);
     }
 
     // Vérifier si le numéro SS existe déjà
@@ -133,18 +190,27 @@ export const createPatient = async (
       },
     });
 
-    // Créer le dossier médical associé
+    // Créer automatiquement le dossier médical avec un statut vide/initial
+    // Le dossier médical est créé vide, les données seront ajoutées plus tard lors des consultations
     await prisma.dossierMedical.create({
       data: {
         patientId: patient.id,
-        groupeSanguin,
-        allergies,
-        antecedents,
+        // Tous les champs sont null/vides au départ (statut initial)
+        groupeSanguin: null,
+        allergies: null,
+        antecedents: null,
+        antecedentsFamiliaux: null,
+        traitementsEnCours: null,
+        vaccinations: null,
+        examenBiologiques: null,
+        historiqueChirurgical: null,
+        notesGenerales: null,
       },
     });
 
     res.status(201).json({
       status: 'success',
+      message: 'Patient créé avec succès. Un dossier médical vide a été créé automatiquement.',
       data: patient,
     });
   } catch (error) {

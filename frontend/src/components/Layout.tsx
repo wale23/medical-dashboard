@@ -8,24 +8,36 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, patient, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const navItems = [
+  // Navigation pour les utilisateurs (médecins/admins)
+  const userNavItems = [
     { path: '/', label: 'Tableau de bord', icon: '📊', roles: ['medecin', 'admin'] },
     { path: '/patients', label: 'Patients', icon: '👥', roles: ['medecin', 'admin'] },
     { path: '/rendez-vous', label: 'Rendez-vous', icon: '📅', roles: ['medecin', 'admin'] },
     { path: '/consultations', label: 'Consultations', icon: '🏥', roles: ['medecin', 'admin'] },
-    { path: '/disponibilites', label: 'Disponibilités', icon: '⏰', roles: ['medecin'] },
+    { path: '/disponibilites', label: 'Mes Disponibilités', icon: '⏰', roles: ['medecin'] },
+    { path: '/admin/disponibilites', label: 'Disponibilités', icon: '⏰', roles: ['admin'] },
     { path: '/medecins', label: 'Utilisateurs', icon: '👥', roles: ['admin'] },
+    { path: '/factures', label: 'Factures', icon: '🧾', roles: ['admin'] },
   ].filter((item) => {
-    // Filtrer les éléments de menu selon le rôle de l'utilisateur
     return user?.userRole && item.roles.includes(user.userRole);
   });
+
+  // Navigation pour les patients
+  const patientNavItems = [
+    { path: '/', label: 'Tableau de bord', icon: '📊' },
+    { path: '/rendez-vous', label: 'Mes Rendez-vous', icon: '📅' },
+    { path: '/consultations', label: 'Mes Consultations', icon: '🏥' },
+    { path: '/patient/disponibilites', label: 'Disponibilités', icon: '⏰' },
+  ];
+
+  const navItems = user ? userNavItems : patientNavItems;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -58,20 +70,40 @@ const Layout = ({ children }: LayoutProps) => {
             })}
           </nav>
 
-          {/* User info */}
+          {/* User/Patient info */}
           <div className="border-t border-gray-200 p-4">
             <div className="mb-3">
               <p className="text-sm font-medium text-gray-900">
-                {user?.prenom} {user?.nom}
+                {user ? `${user.prenom} ${user.nom}` : patient ? `${patient.prenom} ${patient.nom}` : ''}
               </p>
-              <p className="text-xs text-gray-500">{user?.specialite}</p>
+              <p className="text-xs text-gray-500">
+                {user ? user.specialite || user.userRole : patient ? 'Patient' : ''}
+              </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
-              Déconnexion
-            </button>
+            <div className="space-y-2">
+              {user && (
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="w-full rounded-lg bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-200 transition-colors"
+                >
+                  Voir mon profil
+                </button>
+              )}
+              {patient && (
+                <button
+                  onClick={() => navigate('/patient/profile')}
+                  className="w-full rounded-lg bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-200 transition-colors"
+                >
+                  Voir mon profil
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Déconnexion
+              </button>
+            </div>
           </div>
         </div>
       </aside>

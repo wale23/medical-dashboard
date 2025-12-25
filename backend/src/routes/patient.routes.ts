@@ -6,11 +6,17 @@ import {
   createPatient,
   updatePatient,
   deletePatient,
+  getMyProfile,
 } from '../controllers/patient.controller';
 
 const router = Router();
 
 router.use(authenticate);
+
+// Route pour que les patients accèdent à leur propre profil
+router.get('/me', getMyProfile);
+
+// Routes protégées pour médecins/admins
 router.use(authorize('medecin', 'admin'));
 
 router.get('/', getAllPatients);
